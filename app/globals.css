@@ -90,43 +90,34 @@ body { background: #FAFAF9; color: #1C1C1C; }
   to   { background-position: -128px 0; }
 }
 
-/* Obi intro card — display-case turnaround mascot + disabled "Buy $OBI"
-   button. obi-turnaround.png is a 6-frame sprite sheet (front, front-3/4,
-   side, back, back-3/4, side — 512x512 per frame, bottom-center pivot so
-   the character doesn't bob up/down between frames).
-   Rendered as 6 stacked absolutely-positioned layers (one per frame, same
-   background image, each showing a different backgroundPositionX via
-   inline style) that crossfade via opacity — this reads as a smooth turn
-   even with only 6 source angles, instead of the harsh cut you get from
-   stepping background-position on a single element. */
+/* Obi intro card — idle bounce/breathing mascot + disabled "Buy $OBI"
+   button. obi-front.png is the single clean front-facing sprite (no
+   turnaround — see ObiIntro.tsx comment for why). Bottom-anchored so the
+   bounce reads as Obi hopping in place on the floor, not floating. */
 .obi-wave-wrap {
   position: relative;
   width: 140px;
   height: 140px;
 }
-.obi-sprite {
+.obi-idle-sprite {
   position: absolute;
-  inset: 0;
+  bottom: 0;
+  left: 0;
   width: 140px;
   height: 140px;
-  background-image: url('/obi-turnaround.png');
+  background-image: url('/obi-front.png');
   background-repeat: no-repeat;
-  background-size: 840px 140px; /* 6 frames * 140px */
+  background-size: 140px 140px;
   image-rendering: -webkit-optimize-contrast;
-  opacity: 0;
-  animation: obi-crossfade 3.6s ease-in-out infinite;
+  transform-origin: bottom center;
+  animation: obi-idle-bounce 1.8s ease-in-out infinite;
 }
-.obi-sprite-0 { animation-delay: 0.0s; }
-.obi-sprite-1 { animation-delay: -0.6s; }
-.obi-sprite-2 { animation-delay: -1.2s; }
-.obi-sprite-3 { animation-delay: -1.8s; }
-.obi-sprite-4 { animation-delay: -2.4s; }
-.obi-sprite-5 { animation-delay: -3.0s; }
-@keyframes obi-crossfade {
-  0%   { opacity: 1; }
-  14%  { opacity: 1; }
-  30%  { opacity: 0; }
-  100% { opacity: 0; }
+@keyframes obi-idle-bounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  15%      { transform: translateY(0) scale(1.05, 0.92); }  /* squash on contact */
+  45%      { transform: translateY(-14px) scale(0.97, 1.05); } /* stretch at peak */
+  75%      { transform: translateY(0) scale(1.05, 0.92); }  /* squash on landing */
+  85%      { transform: translateY(0) scale(1, 1); }
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
 .obi-buy-btn {

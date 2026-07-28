@@ -1,17 +1,21 @@
 "use client";
 
 // Static intro card for Obi (Observo's mascot), separate from the
-// roaming ObservoBot sprite. Shows a spinning pose, a short lore blurb,
-// and a disabled "Buy $OBI" button with a "soon" tooltip — token isn't
-// live yet.
+// roaming ObservoBot sprite. Shows an idle bounce/breathing pose, a short
+// lore blurb, and a disabled "Buy $OBI" button with a "soon" tooltip —
+// token isn't live yet.
+//
+// A multi-angle turnaround animation was tried first, but AI-generated
+// turnaround sheets weren't consistent enough between frames (size/pose
+// drift) to read as a smooth rotation even with crossfading — so this
+// uses the single clean front-facing sprite with a game-menu-style idle
+// bounce instead, which only needs one image and always looks correct.
 export default function ObiIntro() {
   return (
     <div className="card p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-4">
         <div className="obi-wave-wrap shrink-0">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={`obi-sprite obi-sprite-${i}`} style={{ backgroundPositionX: `${-i * 140}px` }} />
-          ))}
+          <div className="obi-idle-sprite" />
         </div>
         <div>
           <div className="font-semibold text-sm">Meet Obi</div>
