@@ -31,9 +31,9 @@ interface GtPoolsResponse {
 async function gtFetch<T>(path: string): Promise<T> {
   let res: Response | undefined;
   let lastError: unknown;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000); // hard cap — fetch can hang indefinitely otherwise
+    const timeout = setTimeout(() => controller.abort(), 8_000); // hard cap — fetch can hang indefinitely otherwise
     try {
       res = await fetch(`${BASE}${path}`, {
         headers: { Accept: "application/json" },
@@ -47,7 +47,7 @@ async function gtFetch<T>(path: string): Promise<T> {
     } finally {
       clearTimeout(timeout);
     }
-    await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
   if (!res || !res.ok) {
     throw new Error(`GeckoTerminal ${path} -> HTTP ${res?.status ?? "no response"} ${lastError ? `(${(lastError as Error).message})` : ""}`);

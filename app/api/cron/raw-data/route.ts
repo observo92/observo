@@ -5,6 +5,10 @@
 // route should be triggered first (or at least around the same time as)
 // the four /api/cron/verdict?feature=..&mode=.. routes each hour.
 //
+// Volume (GeckoTerminal) and launch (Blockscout) refreshes run and report
+// independently — a GeckoTerminal rate limit / outage must not prevent the
+// unrelated Blockscout launch data from being refreshed, and vice versa.
+//
 // IMPORTANT: raw_snapshots is intentionally NOT allowed to accumulate
 // multiple weeks for the same (feature, source, day_of_week, hour_of_day)
 // slot. Before writing this hour's fresh numbers, any older snapshot rows
@@ -28,16 +32,17 @@ function currentSlot() {
   return { dayOfWeek: now.getUTCDay(), hourOfDay: now.getUTCHours() };
 }
 
-async function refreshCurrentHourRawData() {
+async function refreshVolume() {
   const now = new Date();
   const snapshotDate = now.toISOString().slice(0, 10);
   const { dayOfWeek, hourOfDay } = currentSlot();
   const admin = getSupabaseAdmin();
 
-  // Volume: pull latest top pools + their most recent hourly candle only
-  // (limit=1) — this cron runs every hour, so we only need this hour's data,
-  // not a re-backfill.
-  const pools = await fetchTopPools(3);
+  // Only the top 2 pools, most recent candle only (limit=1) — this cron
+  // runs every hour, so we only need this hour's data. Kept small on
+  // purpose to stay well inside the 60s function budget even when
+  // GeckoTerminal's free tier is slow/rate-limited.
+  const pools = await fetchTopPools(2);
   const volumeBuckets = new Map<string, number>();
   for (const pool of pools) {
     try {
@@ -69,9 +74,16 @@ async function refreshCurrentHourRawData() {
       .neq("snapshot_date", snapshotDate);
     await admin.from("raw_snapshots").upsert(volumeRows, { onConflict: "feature,source,snapshot_date,hour_of_day" });
   }
+}
 
-  // Launch: scan only the last ~1.5h of blocks (comfortable margin over the
-  // 1h cron interval in case a run is delayed), not the whole chain.
+async function refreshLaunch() {
+  const now = new Date();
+  const snapshotDate = now.toISOString().slice(0, 10);
+  const { dayOfWeek, hourOfDay } = currentSlot();
+  const admin = getSupabaseAdmin();
+
+  // Scan only the last ~1.5h of blocks (comfortable margin over the 1h
+  // cron interval in case a run is delayed), not the whole chain.
   const latest = await fetchLatestBlockNumber();
   const fromBlock = await estimateBlockAtTimestamp(Math.floor(now.getTime() / 1000) - 5400);
   const launchCounts = new Map<string, number>();
@@ -113,11 +125,12 @@ export async function GET(request: NextRequest) {
   }
 
   const { dayOfWeek, hourOfDay } = currentSlot();
+  const results: Record<string, string> = {};
 
-  try {
-    await refreshCurrentHourRawData();
-    return NextResponse.json({ dayOfWeek, hourOfDay, rawData: "ok" });
-  } catch (e) {
-    return NextResponse.json({ dayOfWeek, hourOfDay, rawData: `error: ${(e as Error).message}` }, { status: 500 });
-  }
+  const [volumeResult, launchResult] = await Promise.allSettled([refreshVolume(), refreshLaunch()]);
+  results.volume = volumeResult.status === "fulfilled" ? "ok" : `error: ${(volumeResult.reason as Error).message}`;
+  results.launch = launchResult.status === "fulfilled" ? "ok" : `error: ${(launchResult.reason as Error).message}`;
+
+  const anyOk = results.volume === "ok" || results.launch === "ok";
+  return NextResponse.json({ dayOfWeek, hourOfDay, results }, { status: anyOk ? 200 : 500 });
 }
