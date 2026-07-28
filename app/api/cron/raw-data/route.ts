@@ -1,7 +1,9 @@
-// Hourly cron endpoint. Refreshes the verdict for the CURRENT hour-of-week
-// slot only (8 verdicts: 2 features x 2 modes... wait, also re-pulls fresh
-// raw data for the current hour first so the verdict reflects up-to-date
-// numbers, not stale data from last week's same hour).
+// Hourly cron endpoint (data only). Refreshes raw_snapshots for the CURRENT
+// hour-of-week slot. Split out from the old combined /api/cron/tick route
+// because Vercel Hobby plan caps function duration at 60s, and fetching
+// fresh data + generating 4 AI verdicts sequentially exceeded that. This
+// route should be triggered first (or at least around the same time as)
+// the four /api/cron/verdict?feature=..&mode=.. routes each hour.
 //
 // IMPORTANT: raw_snapshots is intentionally NOT allowed to accumulate
 // multiple weeks for the same (feature, source, day_of_week, hour_of_day)
@@ -11,17 +13,15 @@
 // slot) would see volume/launch counts inflated by old weeks piling up,
 // making a slot look "busier" than it actually is right now.
 //
-// Schedule via vercel.json: runs once per hour. Protected by CRON_SECRET
-// so it can't be triggered by random requests hitting the URL.
+// Protected by CRON_SECRET so it can't be triggered by random requests.
 
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTopPools, fetchHourlyVolume } from "@/lib/sources/geckoterminal";
 import { fetchLogs, fetchLatestBlockNumber, estimateBlockAtTimestamp } from "@/lib/sources/blockscout";
 import { LAUNCHPADS, decodeDeploymentLog } from "@/lib/sources/launchpads";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { generateAndStoreVerdict } from "@/lib/ai/store";
 
-export const maxDuration = 300; // this route does real work, give it room
+export const maxDuration = 60; // Hobby plan cap
 
 function currentSlot() {
   const now = new Date();
@@ -113,34 +113,11 @@ export async function GET(request: NextRequest) {
   }
 
   const { dayOfWeek, hourOfDay } = currentSlot();
-  const results: Record<string, string> = {};
 
   try {
     await refreshCurrentHourRawData();
-    results.rawData = "ok";
+    return NextResponse.json({ dayOfWeek, hourOfDay, rawData: "ok" });
   } catch (e) {
-    results.rawData = `error: ${(e as Error).message}`;
+    return NextResponse.json({ dayOfWeek, hourOfDay, rawData: `error: ${(e as Error).message}` }, { status: 500 });
   }
-
-  const combos: Array<["volume" | "launch", "trader" | "deployer"]> = [
-    ["volume", "trader"],
-    ["volume", "deployer"],
-    ["launch", "trader"],
-    ["launch", "deployer"],
-  ];
-
-  // Sequential, not parallel — llama-3.1-8b-instant's free tier caps at
-  // 6,000 tokens/minute, and each verdict uses ~2,000 tokens across 2
-  // requests, so running all 4 at once risks tripping that per-minute cap.
-  for (const [feature, mode] of combos) {
-    const key = `${feature}/${mode}`;
-    try {
-      await generateAndStoreVerdict(feature, mode, dayOfWeek, hourOfDay);
-      results[key] = "ok";
-    } catch (e) {
-      results[key] = `error: ${(e as Error).message}`;
-    }
-  }
-
-  return NextResponse.json({ dayOfWeek, hourOfDay, results });
 }
