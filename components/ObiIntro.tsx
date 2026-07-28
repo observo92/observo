@@ -9,7 +9,9 @@ export default function ObiIntro() {
     <div className="card p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-4">
         <div className="obi-wave-wrap shrink-0">
-          <div className="obi-sprite" />
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className={`obi-sprite obi-sprite-${i}`} style={{ backgroundPositionX: `${-i * 140}px` }} />
+          ))}
         </div>
         <div>
           <div className="font-semibold text-sm">Meet Obi</div>

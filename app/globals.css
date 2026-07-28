@@ -93,27 +93,40 @@ body { background: #FAFAF9; color: #1C1C1C; }
 /* Obi intro card — display-case turnaround mascot + disabled "Buy $OBI"
    button. obi-turnaround.png is a 6-frame sprite sheet (front, front-3/4,
    side, back, back-3/4, side — 512x512 per frame, bottom-center pivot so
-   the character doesn't bob up/down between frames) generated as a real
-   turnaround of the character, not a CSS fake. Frame-stepped like a
-   miniature figure slowly rotating in a display case. */
+   the character doesn't bob up/down between frames).
+   Rendered as 6 stacked absolutely-positioned layers (one per frame, same
+   background image, each showing a different backgroundPositionX via
+   inline style) that crossfade via opacity — this reads as a smooth turn
+   even with only 6 source angles, instead of the harsh cut you get from
+   stepping background-position on a single element. */
 .obi-wave-wrap {
   position: relative;
   width: 140px;
   height: 140px;
 }
 .obi-sprite {
+  position: absolute;
+  inset: 0;
   width: 140px;
   height: 140px;
   background-image: url('/obi-turnaround.png');
   background-repeat: no-repeat;
   background-size: 840px 140px; /* 6 frames * 140px */
-  background-position: 0 0;
   image-rendering: -webkit-optimize-contrast;
-  animation: obi-turn 3.6s steps(6) infinite;
+  opacity: 0;
+  animation: obi-crossfade 3.6s ease-in-out infinite;
 }
-@keyframes obi-turn {
-  from { background-position: 0 0; }
-  to   { background-position: -840px 0; }
+.obi-sprite-0 { animation-delay: 0.0s; }
+.obi-sprite-1 { animation-delay: -0.6s; }
+.obi-sprite-2 { animation-delay: -1.2s; }
+.obi-sprite-3 { animation-delay: -1.8s; }
+.obi-sprite-4 { animation-delay: -2.4s; }
+.obi-sprite-5 { animation-delay: -3.0s; }
+@keyframes obi-crossfade {
+  0%   { opacity: 1; }
+  14%  { opacity: 1; }
+  30%  { opacity: 0; }
+  100% { opacity: 0; }
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
 .obi-buy-btn {
