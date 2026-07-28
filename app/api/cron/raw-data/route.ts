@@ -127,7 +127,22 @@ export async function GET(request: NextRequest) {
   const { dayOfWeek, hourOfDay } = currentSlot();
   const results: Record<string, string> = {};
 
-  const [volumeResult, launchResult] = await Promise.allSettled([refreshVolume(), refreshLaunch()]);
+  // Hard per-task deadline so a slow/rate-limited upstream (GeckoTerminal or
+  // Blockscout) can never make the whole function exceed Vercel's 60s cap —
+  // whichever task is still pending past 45s is abandoned and reported as a
+  // timeout rather than dragging the other task's already-settled result
+  // down with it.
+  function withDeadline<T>(promise: Promise<T>, label: string, ms = 45_000): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} exceeded ${ms}ms deadline`)), ms)),
+    ]);
+  }
+
+  const [volumeResult, launchResult] = await Promise.allSettled([
+    withDeadline(refreshVolume(), "refreshVolume"),
+    withDeadline(refreshLaunch(), "refreshLaunch"),
+  ]);
   results.volume = volumeResult.status === "fulfilled" ? "ok" : `error: ${(volumeResult.reason as Error).message}`;
   results.launch = launchResult.status === "fulfilled" ? "ok" : `error: ${(launchResult.reason as Error).message}`;
 
