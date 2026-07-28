@@ -92,7 +92,8 @@ body { background: #FAFAF9; color: #1C1C1C; }
 
 /* Obi intro card — display-case turnaround mascot + disabled "Buy $OBI"
    button. obi-turnaround.png is a 6-frame sprite sheet (front, front-3/4,
-   side, back, back-3/4, side — 491x491 per frame) generated as a real
+   side, back, back-3/4, side — 512x512 per frame, bottom-center pivot so
+   the character doesn't bob up/down between frames) generated as a real
    turnaround of the character, not a CSS fake. Frame-stepped like a
    miniature figure slowly rotating in a display case. */
 .obi-wave-wrap {
