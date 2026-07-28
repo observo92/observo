@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+* { font-family: 'Inter', sans-serif; }
+body { background: #FAFAF9; color: #1C1C1C; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.card { background: #fff; border: 1px solid #ECECEA; border-radius: 20px; position: relative; z-index: 2; }
+.cell { border-radius: 8px; transition: transform .12s ease; cursor: pointer; }
+.cell:hover { transform: scale(1.12); }
+.pill { border-radius: 999px; }
+.breathe { animation: breathe 2.5s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.tab-active { background: #1C1C1C; color: #fff; }
+.mode-trader-active { background: #EAF6FF; color: #0B7DBF; border-color: #B9E3FA; }
+.mode-deployer-active { background: #FFF3E4; color: #C2740B; border-color: #FBDBAF; }
+.navlink { color: #6B6B6B; font-size: 13px; }
+.navlink:hover { color: #1C1C1C; }
+.navlink.active { color: #1C1C1C; font-weight: 600; }
+
+/* radar sweep, like Popnorc's submarine sonar scan */
+.scan-wrap { position: relative; overflow: hidden; border-radius: 12px; }
+.scan-line {
+  position: absolute;
+  top: 0;
+  left: -140px;
+  width: 140px;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(11, 125, 191, 0) 0%,
+    rgba(11, 125, 191, 0.05) 55%,
+    rgba(11, 125, 191, 0.16) 85%,
+    rgba(11, 125, 191, 0.28) 100%
+  );
+  mix-blend-mode: multiply;
+  animation: scan-sweep 4.5s linear infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+@keyframes scan-sweep {
+  0% { left: -140px; }
+  100% { left: 100%; }
+}
+
+/* verify signature moment */
+.verify-trigger { cursor: pointer; }
+.verify-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .35s ease;
+}
+.verify-panel.open { max-height: 300px; }
+.verify-spinner {
+  width: 13px; height: 13px;
+  border: 2px solid #D1FAE5;
+  border-top-color: #10B981;
+  border-radius: 50%;
+  animation: verify-spin .6s linear infinite;
+}
+@keyframes verify-spin { to { transform: rotate(360deg); } }
+.verify-check {
+  animation: verify-pop .3s ease;
+}
+@keyframes verify-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Observo mascot — sprite sheet walk cycle, roams behind page content */
+.observo-bot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 64px;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url('/observo-bot-sprite.png');
+  background-repeat: no-repeat;
+  background-size: 128px 64px;
+  background-position: 0 0;
+  image-rendering: -webkit-optimize-contrast;
+}
+.observo-bot.walking {
+  animation: bot-sprite-cycle .5s steps(4) infinite;
+}
+@keyframes bot-sprite-cycle {
+  from { background-position: 0 0; }
+  to   { background-position: -128px 0; }
+}
