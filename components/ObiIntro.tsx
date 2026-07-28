@@ -1,8 +1,9 @@
 "use client";
 
 // Static intro card for Obi (Observo's mascot), separate from the
-// roaming ObservoBot sprite. Shows a waving pose + a disabled "Buy $OBI"
-// button with a "soon" tooltip — token isn't live yet.
+// roaming ObservoBot sprite. Shows a spinning/waving pose, a short lore
+// blurb, and a disabled "Buy $OBI" button with a "soon" tooltip — token
+// isn't live yet.
 export default function ObiIntro() {
   return (
     <div className="card p-5 mb-4 flex items-center justify-between gap-4 flex-wrap">
@@ -13,9 +14,13 @@ export default function ObiIntro() {
         </div>
         <div>
           <div className="font-semibold text-sm">Meet Obi</div>
-          <div className="text-xs text-gray-500 mt-0.5 max-w-xs">
-            Obi is Observo&apos;s mascot, wandering the site keeping an eye on the data.
-          </div>
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed max-w-sm">
+            Obi lives inside Observo, wandering the site around the clock so nothing on Robinhood
+            Chain slips by unnoticed. Every heatmap cell you see has already been checked by Obi
+            first — pools scanned, launches counted, patterns cross-referenced — before the AI
+            writes a single word of its verdict. Obi doesn&apos;t sleep, doesn&apos;t guess, and
+            never gets tired of watching the charts so you don&apos;t have to.
+          </p>
         </div>
       </div>
 
