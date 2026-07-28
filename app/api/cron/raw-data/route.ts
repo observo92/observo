@@ -20,7 +20,7 @@
 // Protected by CRON_SECRET so it can't be triggered by random requests.
 
 import { NextRequest, NextResponse } from "next/server";
-import { fetchTopPools, fetchHourlyVolume } from "@/lib/sources/geckoterminal";
+import { fetchTopPools } from "@/lib/sources/geckoterminal";
 import { fetchLogs, fetchLatestBlockNumber, estimateBlockAtTimestamp } from "@/lib/sources/blockscout";
 import { LAUNCHPADS, decodeDeploymentLog } from "@/lib/sources/launchpads";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -38,21 +38,15 @@ async function refreshVolume() {
   const { dayOfWeek, hourOfDay } = currentSlot();
   const admin = getSupabaseAdmin();
 
-  // Only the top 2 pools, most recent candle only (limit=1) — this cron
-  // runs every hour, so we only need this hour's data. Kept small on
-  // purpose to stay well inside the 60s function budget even when
-  // GeckoTerminal's free tier is slow/rate-limited.
-  const pools = await fetchTopPools(2);
+  // Single page (20 pools) is enough to cover Robinhood Chain's current
+  // pool count, and the /pools response already includes each pool's
+  // volume_usd.h1 (rolling last-hour volume) — no separate /ohlcv/hour
+  // call needed per pool. Keeps this to exactly one GeckoTerminal request
+  // per run, which matters given its aggressive free-tier rate limit.
+  const pools = await fetchTopPools(1);
   const volumeBuckets = new Map<string, number>();
   for (const pool of pools) {
-    try {
-      const candles = await fetchHourlyVolume(pool.poolAddress, 1);
-      if (candles.length > 0) {
-        volumeBuckets.set(pool.dexId, (volumeBuckets.get(pool.dexId) ?? 0) + candles[0].volumeUsd);
-      }
-    } catch {
-      // one bad pool shouldn't abort the whole hourly refresh
-    }
+    volumeBuckets.set(pool.dexId, (volumeBuckets.get(pool.dexId) ?? 0) + pool.volume1hUsd);
   }
   const volumeRows = Array.from(volumeBuckets.entries()).map(([dexId, volumeUsd]) => ({
     feature: "volume",

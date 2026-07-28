@@ -11,7 +11,7 @@ interface GtPool {
   attributes: {
     address: string;
     name: string;
-    volume_usd: { h24: string };
+    volume_usd: { h1: string; h24: string };
   };
   relationships: {
     dex: { data: { id: string } };
@@ -65,12 +65,20 @@ export interface PoolSummary {
   poolAddress: string;
   poolName: string;
   dexId: string;
+  volume1hUsd: number;
   volume24hUsd: number;
 }
 
 // Top pools by volume on Robinhood Chain, across multiple pages (each page
 // is 20 pools). Used to know which pools/dexes exist before pulling their
 // hourly OHLCV history.
+//
+// The /pools list endpoint already includes each pool's volume_usd.h1
+// (rolling last-hour volume) — so for the hourly cron we read that
+// directly instead of making a second /ohlcv/hour call per pool. That
+// keeps GeckoTerminal usage to a single request per run, which matters a
+// lot given its aggressive free-tier rate limit (~30 req/min, and Vercel's
+// shared serverless IPs get rate-limited harder than that in practice).
 export async function fetchTopPools(pages = 5): Promise<PoolSummary[]> {
   const results: PoolSummary[] = [];
   for (let page = 1; page <= pages; page++) {
@@ -83,6 +91,7 @@ export async function fetchTopPools(pages = 5): Promise<PoolSummary[]> {
         poolAddress: pool.attributes.address,
         poolName: pool.attributes.name,
         dexId: pool.relationships.dex.data.id,
+        volume1hUsd: parseFloat(pool.attributes.volume_usd.h1 || "0"),
         volume24hUsd: parseFloat(pool.attributes.volume_usd.h24 || "0"),
       });
     }
