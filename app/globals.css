@@ -90,12 +90,17 @@ body { background: #FAFAF9; color: #1C1C1C; }
   to   { background-position: -128px 0; }
 }
 
-/* Obi intro card — big spinning mascot + disabled "Buy $OBI" button */
+/* Obi intro card — big spinning mascot + disabled "Buy $OBI" button.
+   The sprite is a single side-view pose (no separate front/back art), so
+   the turn is faked with a "squash" trick: scaleX goes 1 -> 0 -> -1 -> 0
+   -> 1, so the body visually narrows to an edge (reads as facing the
+   camera) then widens back out mirrored (reads as the other side/back)
+   before returning to the starting pose. Common technique for simulating
+   a 360 turn from one flat sprite. */
 .obi-wave-wrap {
   position: relative;
   width: 100px;
   height: 160px;
-  perspective: 400px;
 }
 .obi-sprite {
   width: 80px;
@@ -105,12 +110,14 @@ body { background: #FAFAF9; color: #1C1C1C; }
   background-size: 320px 160px;
   background-position: 0 0;
   image-rendering: -webkit-optimize-contrast;
-  animation: obi-spin 2.2s linear infinite;
-  transform-style: preserve-3d;
+  animation: obi-spin 2.2s ease-in-out infinite;
 }
 @keyframes obi-spin {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(360deg); }
+  0%   { transform: scaleX(1); }
+  25%  { transform: scaleX(0); }
+  50%  { transform: scaleX(-1); }
+  75%  { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
 .obi-buy-btn {
