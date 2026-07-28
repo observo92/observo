@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { VerdictCell } from "@/lib/types";
+import ObiIntro from "@/components/ObiIntro";
 
 type Feature = "volume" | "launch";
 type Mode = "trader" | "deployer";
@@ -273,6 +274,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <ObiIntro />
 
       <Link href="/api-docs" className="card p-5 flex items-center justify-between gap-3 flex-wrap mb-4 hover:border-gray-300 transition-colors">
         <div>

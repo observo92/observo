@@ -89,3 +89,61 @@ body { background: #FAFAF9; color: #1C1C1C; }
   from { background-position: 0 0; }
   to   { background-position: -128px 0; }
 }
+
+/* Obi intro card — static waving pose + disabled "Buy $OBI" button */
+.obi-wave-wrap {
+  position: relative;
+  width: 40px;
+  height: 64px;
+}
+.obi-sprite {
+  width: 32px;
+  height: 64px;
+  background-image: url('/observo-bot-sprite.png');
+  background-repeat: no-repeat;
+  background-size: 128px 64px;
+  background-position: 0 0;
+  image-rendering: -webkit-optimize-contrast;
+}
+.obi-hand {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  font-size: 18px;
+  transform-origin: 70% 70%;
+  animation: obi-wave 1.1s ease-in-out infinite;
+}
+@keyframes obi-wave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-18deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(-12deg); }
+}
+
+.obi-buy-wrap { position: relative; display: inline-block; }
+.obi-buy-btn {
+  background: #F3F3F1;
+  color: #B0B0AC;
+  cursor: not-allowed;
+  border: 1px solid #ECECEA;
+}
+.obi-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #1C1C1C;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+.obi-buy-wrap:hover .obi-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
