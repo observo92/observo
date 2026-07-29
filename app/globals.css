@@ -2,20 +2,20 @@
 @import "tailwindcss";
 
 * { font-family: 'Inter', sans-serif; }
-body { background: #FAFAF9; color: #1C1C1C; }
+body { background: #0A0A0A; color: #F2F2F2; }
 .mono { font-family: 'JetBrains Mono', monospace; }
-.card { background: #fff; border: 1px solid #ECECEA; border-radius: 20px; position: relative; z-index: 2; }
+.card { background: #141414; border: 1px solid #242424; border-radius: 20px; position: relative; z-index: 2; }
 .cell { border-radius: 8px; transition: transform .12s ease; cursor: pointer; }
 .cell:hover { transform: scale(1.12); }
 .pill { border-radius: 999px; }
 .breathe { animation: breathe 2.5s ease-in-out infinite; }
 @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
-.tab-active { background: #1C1C1C; color: #fff; }
-.mode-trader-active { background: #EAF6FF; color: #0B7DBF; border-color: #B9E3FA; }
-.mode-deployer-active { background: #FFF3E4; color: #C2740B; border-color: #FBDBAF; }
-.navlink { color: #6B6B6B; font-size: 13px; }
-.navlink:hover { color: #1C1C1C; }
-.navlink.active { color: #1C1C1C; font-weight: 600; }
+.tab-active { background: #F2F2F2; color: #0A0A0A; }
+.mode-trader-active { background: rgba(79, 195, 247, 0.12); color: #6FD1FF; border-color: rgba(79, 195, 247, 0.3); }
+.mode-deployer-active { background: rgba(240, 168, 96, 0.12); color: #F0A860; border-color: rgba(240, 168, 96, 0.3); }
+.navlink { color: #8A8A8A; font-size: 13px; }
+.navlink:hover { color: #F2F2F2; }
+.navlink.active { color: #F2F2F2; font-weight: 600; }
 
 /* radar sweep, like Popnorc's submarine sonar scan */
 .scan-wrap { position: relative; overflow: hidden; border-radius: 12px; }
@@ -121,18 +121,18 @@ body { background: #FAFAF9; color: #1C1C1C; }
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
 .obi-buy-btn {
-  background: #F3F3F1;
-  color: #B0B0AC;
+  background: #1C1C1C;
+  color: #6A6A6A;
   cursor: not-allowed;
-  border: 1px solid #ECECEA;
+  border: 1px solid #2A2A2A;
 }
 .obi-tooltip {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  background: #1C1C1C;
-  color: #fff;
+  background: #F2F2F2;
+  color: #0A0A0A;
   font-size: 11px;
   font-weight: 500;
   padding: 4px 10px;

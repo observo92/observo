@@ -19,7 +19,7 @@ export default function ObiIntro() {
         </div>
         <div>
           <div className="font-semibold text-sm">Meet Obi</div>
-          <p className="text-xs text-gray-500 mt-1 leading-relaxed max-w-sm">
+          <p className="text-xs text-gray-400 mt-1 leading-relaxed max-w-sm">
             Obi lives inside Observo, wandering the site around the clock so nothing on Robinhood
             Chain slips by unnoticed. Every heatmap cell you see has already been checked by Obi
             first — pools scanned, launches counted, patterns cross-referenced — before the AI

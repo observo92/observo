@@ -6,7 +6,7 @@ export default function ApiDocsPage() {
 
       <div className="card p-6 mb-5">
         <h2 className="font-semibold mb-3">Get the heatmap grid</h2>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mono text-[12.5px] text-gray-600 mb-3 overflow-x-auto">
+        <div className="bg-[#1C1C1C] border border-gray-700 rounded-xl p-3.5 mono text-[12.5px] text-gray-400 mb-3 overflow-x-auto">
           GET https://observo.xyz/api/v1/heatmap?feature=volume&amp;mode=trader
         </div>
         <div className="bg-[#1C1C1C] rounded-xl p-4 mono text-[12px] text-gray-300 overflow-x-auto leading-relaxed">
@@ -32,15 +32,15 @@ export default function ApiDocsPage() {
 
       <div className="card p-6 mb-5">
         <h2 className="font-semibold mb-3">Parameters</h2>
-        <table className="w-full text-sm text-gray-600">
+        <table className="w-full text-sm text-gray-400">
           <tbody>
-            <tr className="border-b border-gray-100">
+            <tr className="border-b border-gray-800">
               <td className="py-2 mono text-xs">feature</td>
-              <td className="py-2 text-gray-400">&quot;volume&quot; or &quot;launch&quot;</td>
+              <td className="py-2 text-gray-500">&quot;volume&quot; or &quot;launch&quot;</td>
             </tr>
             <tr>
               <td className="py-2 mono text-xs">mode</td>
-              <td className="py-2 text-gray-400">&quot;trader&quot; or &quot;deployer&quot;</td>
+              <td className="py-2 text-gray-500">&quot;trader&quot; or &quot;deployer&quot;</td>
             </tr>
           </tbody>
         </table>
@@ -48,11 +48,11 @@ export default function ApiDocsPage() {
 
       <div className="card p-6 mb-5">
         <h2 className="font-semibold mb-3">Verify a signature</h2>
-        <p className="text-sm text-gray-600 leading-relaxed mb-3">
+        <p className="text-sm text-gray-400 leading-relaxed mb-3">
           Every verdict is signed the moment it&apos;s generated with Ed25519. Verify independently
           without trusting Observo&apos;s servers — or just POST to our verify endpoint:
         </p>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mono text-[12.5px] text-gray-600 mb-3 overflow-x-auto">
+        <div className="bg-[#1C1C1C] border border-gray-700 rounded-xl p-3.5 mono text-[12.5px] text-gray-400 mb-3 overflow-x-auto">
           POST https://observo.xyz/api/v1/verify {`{ "hash": "...", "signature": "..." }`}
         </div>
         <div className="bg-[#1C1C1C] rounded-xl p-4 mono text-[12px] text-gray-300 overflow-x-auto leading-relaxed">
@@ -70,15 +70,15 @@ const isValid = verify(
 
       <div className="card p-6">
         <h2 className="font-semibold mb-3">Rate limits</h2>
-        <table className="w-full text-sm text-gray-600">
+        <table className="w-full text-sm text-gray-400">
           <tbody>
-            <tr className="border-b border-gray-100">
+            <tr className="border-b border-gray-800">
               <td className="py-2">Anonymous</td>
-              <td className="py-2 text-right text-gray-400">60 requests / hour</td>
+              <td className="py-2 text-right text-gray-500">60 requests / hour</td>
             </tr>
             <tr>
               <td className="py-2">With free API key</td>
-              <td className="py-2 text-right text-gray-400">600 requests / hour</td>
+              <td className="py-2 text-right text-gray-500">600 requests / hour</td>
             </tr>
           </tbody>
         </table>

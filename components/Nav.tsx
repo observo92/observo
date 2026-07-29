@@ -17,15 +17,15 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="border-b border-gray-100 bg-white/70 backdrop-blur sticky top-0 z-30">
+    <header className="border-b border-gray-800 bg-black/70 backdrop-blur sticky top-0 z-30">
       <div className="max-w-4xl mx-auto px-5 py-3.5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-amber-400 flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-amber-500 flex items-center justify-center text-black font-bold text-sm">
             O
           </div>
           <div>
             <div className="font-bold text-[15px] leading-none">Observo</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">Powered by AI</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Powered by AI</div>
           </div>
         </Link>
         <nav className="hidden sm:flex items-center gap-5">
