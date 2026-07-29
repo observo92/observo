@@ -4,6 +4,7 @@ export interface VerdictCell {
   score: number;
   confidence: "low" | "medium" | "high";
   reasoning: string;
+  raw_stats: { total: number; average: number; bySource: Record<string, number>; sampleSize: number } | null;
   payload_hash: string;
   signature: string;
   signed_at: string;

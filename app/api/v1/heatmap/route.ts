@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("verdicts")
-    .select("day_of_week, hour_of_day, score, confidence, reasoning, payload_hash, signature, signed_at")
+    .select("day_of_week, hour_of_day, score, confidence, reasoning, raw_stats, payload_hash, signature, signed_at")
     .eq("feature", feature)
     .eq("mode", mode);
 

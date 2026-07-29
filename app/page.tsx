@@ -28,6 +28,18 @@ function hourLabel(hour: number): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
 }
 
+function formatStat(cell: VerdictCell | undefined, feature: Feature): string | null {
+  const total = cell?.raw_stats?.total;
+  if (total === undefined || total === null) return null;
+  if (feature === "volume") {
+    if (total >= 1_000_000) return `$${(total / 1_000_000).toFixed(1)}M volume`;
+    if (total >= 1_000) return `$${(total / 1_000).toFixed(1)}K volume`;
+    return `$${Math.round(total)} volume`;
+  }
+  const count = Math.round(total);
+  return `${count} launch${count === 1 ? "" : "es"}`;
+}
+
 export default function Home() {
   const [tab, setTab] = useState<Feature>("volume");
   const [mode, setMode] = useState<Mode>("trader");
@@ -120,8 +132,13 @@ export default function Home() {
       </div>
 
       <div className="card p-5 mb-4">
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-          <span className="breathe">✨</span> Observo AI says
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="breathe">✨</span> Observo AI says
+          </div>
+          {formatStat(currentCell, tab) && (
+            <div className="mono text-xs text-gray-400">{formatStat(currentCell, tab)}</div>
+          )}
         </div>
         <p className="text-[15px] leading-relaxed" dangerouslySetInnerHTML={{ __html: aiSaysText().html }} />
       </div>
@@ -172,7 +189,7 @@ export default function Home() {
               return (
                 <div
                   key={h}
-                  className="cell flex-1 h-9"
+                  className={`cell flex-1 h-9 ${cell && cell.score >= 7 ? "cell-hot" : ""}`}
                   style={{
                     background: cell ? scoreColor(cell.score) : "#1A1A1A",
                     outline: h === nowHour ? "2px solid #FBBF24" : undefined,
@@ -197,7 +214,7 @@ export default function Home() {
                     return (
                       <div
                         key={h}
-                        className="cell flex-1 h-4"
+                        className={`cell flex-1 h-4 ${cell && cell.score >= 7 ? "cell-hot" : ""}`}
                         style={{
                           background: cell ? scoreColor(cell.score) : "#1A1A1A",
                           outline: dayIdx === nowDay && h === nowHour ? "2px solid #FBBF24" : undefined,
@@ -228,7 +245,13 @@ export default function Home() {
             <div className={`pill px-3 py-1 text-xs font-medium ${tagFor(selected.score).cls}`}>{tagFor(selected.score).text}</div>
           </div>
           <p className="text-sm text-gray-300 leading-relaxed">{selected.reasoning}</p>
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className={`grid gap-2 mt-4 ${formatStat(selected, tab) ? "grid-cols-3" : "grid-cols-2"}`}>
+            {formatStat(selected, tab) && (
+              <div className="bg-[#1C1C1C] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-gray-500">{tab === "volume" ? "Volume" : "Launches"}</div>
+                <div className="font-semibold text-sm mt-0.5 mono">{formatStat(selected, tab)}</div>
+              </div>
+            )}
             <div className="bg-[#1C1C1C] rounded-xl p-2.5 text-center">
               <div className="text-[10px] text-gray-500">Confidence</div>
               <div className="font-semibold text-sm mt-0.5 capitalize">{selected.confidence}</div>

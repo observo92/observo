@@ -56,7 +56,11 @@ Use the tools to gather evidence before answering:
 3. Check whether the pattern is confirmed across multiple sources, not just one outlier.
 4. Optionally check how this hour ranks against others in the same day.
 
-Be honest and conservative. If there's little data, say confidence is "low" and don't overstate the score. If one source dominates the numbers, mention that this could be less reliable in your reasoning. A high score (8-10) should only be given when the evidence is strong and broad; do not inflate.
+IMPORTANT — score and confidence are two SEPARATE things, do not mix them up:
+- "score" (0-10) reflects how busy/active THIS HOUR actually is, based on the real numbers you see (the dollar total, how it ranks against other hours, whether it's confirmed by multiple sources). A huge volume number backed by only 1 day of data is still a huge volume number RIGHT NOW — score it as such. Only lower the score for weak/questionable activity (tiny numbers, single-wallet noise, one outlier source), never just because history is short.
+- "confidence" (low/medium/high) reflects only how much historical data backs this slot (how many distinct days observed). Few days of history = low confidence, but that alone should NOT drag the score down — it just means the UI will show this is a newer read.
+- Mention the actual dollar/count numbers you saw in your reasoning (e.g. "around $2.3M in volume this hour") so the reasoning is concrete, not vague. If one source dominates, you can still mention that, but don't let it override a genuinely large, real number — only discount it if the total itself looks like noise (e.g. under a few thousand dollars from a single wallet).
+- A high score (8-10) should reflect genuinely high activity for this feature, even from a single day of data. Reserve low scores (0-3) for genuinely quiet/small numbers, not just "low confidence".
 
 When you're done gathering evidence, respond with ONLY a JSON object (no markdown, no extra text) in this exact shape:
 {"score": <integer 0-10>, "confidence": "low"|"medium"|"high", "reasoning": "<plain English, 1-3 sentences>"}`;
