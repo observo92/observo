@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
@@ -20,9 +21,7 @@ export default function Nav() {
     <header className="border-b border-gray-800 bg-black/70 backdrop-blur sticky top-0 z-30">
       <div className="max-w-4xl mx-auto px-5 py-3.5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-amber-500 flex items-center justify-center text-black font-bold text-sm">
-            O
-          </div>
+          <Image src="/logo.jpg" alt="Observo" width={32} height={32} className="w-8 h-8 rounded-full" />
           <div>
             <div className="font-bold font-display text-[15px] leading-none">Observo</div>
             <div className="text-[10px] text-gray-500 mt-0.5">Powered by AI</div>
