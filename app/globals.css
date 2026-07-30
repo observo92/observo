@@ -16,8 +16,8 @@ body {
 .cell:hover { transform: scale(1.12); }
 .cell-hot { animation: cell-pulse 1.8s ease-in-out infinite; }
 @keyframes cell-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 72, 60, 0.55); }
-  50% { box-shadow: 0 0 0 4px rgba(232, 72, 60, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62, 203, 99, 0.55); }
+  50% { box-shadow: 0 0 0 4px rgba(62, 203, 99, 0); }
 }
 .pill { border-radius: 999px; }
 .breathe { animation: breathe 2.5s ease-in-out infinite; }

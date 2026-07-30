@@ -12,12 +12,13 @@ type Mode = "trader" | "deployer";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// 4-tier scale: quiet (blue) -> active (green) -> hot (gold) -> peak (red).
+// Black -> bright green scale, darker score = quieter, brighter = peak.
 function scoreColor(score: number): string {
-  if (score <= 2) return "#16233a"; // quiet
-  if (score <= 5) return "#1e5c3a"; // active
-  if (score <= 7) return "#a1741f"; // hot
-  return "#7a231d"; // peak
+  if (score <= 1) return "#141d16";
+  if (score <= 3) return "#1c3a24";
+  if (score <= 5) return "#256b38";
+  if (score <= 7) return "#2fa350";
+  return "#3ecb63"; // peak — also gets the pulse animation
 }
 
 function cellKey(day: number, hour: number): string {
@@ -295,10 +296,10 @@ export default function Home() {
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-800 text-[11px] text-gray-500 flex-wrap">
           <span>Quiet</span>
           <div className="flex gap-0.5">
-            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#16233a" }} />
-            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#1e5c3a" }} />
-            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#a1741f" }} />
-            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#7a231d" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#141d16" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#1c3a24" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#256b38" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#3ecb63" }} />
           </div>
           <span>Peak</span>
           <div className="flex items-center gap-1 ml-1"><span className="w-2.5 h-2.5 rounded-full inline-block border-2 border-amber-400" /> Now</div>
