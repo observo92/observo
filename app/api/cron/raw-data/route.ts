@@ -9,13 +9,17 @@
 // independently — a GeckoTerminal rate limit / outage must not prevent the
 // unrelated Blockscout launch data from being refreshed, and vice versa.
 //
-// IMPORTANT: raw_snapshots is intentionally NOT allowed to accumulate
-// multiple weeks for the same (feature, source, day_of_week, hour_of_day)
-// slot. Before writing this hour's fresh numbers, any older snapshot rows
-// for that exact slot (different snapshot_date, same day-of-week/hour) are
-// deleted first. Otherwise the AI's tools (which SUM across all rows for a
-// slot) would see volume/launch counts inflated by old weeks piling up,
-// making a slot look "busier" than it actually is right now.
+// raw_snapshots accumulates one row per (feature, source, snapshot_date,
+// hour_of_day) — every week's data for a given hour-of-week slot is kept,
+// never deleted. This is what lets confidence (lib/ai/tools.ts
+// getSampleConfidence, based on distinct snapshot_date count for a slot)
+// actually grow over time instead of being stuck at 1-2 days forever. An
+// earlier version of this file deleted prior weeks' rows for a slot before
+// writing the current one, out of a (mistaken) concern that the AI's SUM-
+// based tool would see inflated totals as weeks piled up — but the tools
+// already compute `average` (total / distinct days), which is what the AI
+// is instructed to reason from, so accumulating history is safe and in
+// fact required for confidence to mean anything.
 //
 // Protected by CRON_SECRET so it can't be triggered by random requests.
 
@@ -57,15 +61,8 @@ async function refreshVolume() {
     volume_usd: volumeUsd,
   }));
   if (volumeRows.length > 0) {
-    // Wipe any prior week's snapshot for this exact slot before writing the
-    // fresh one, so raw_snapshots never holds more than the latest week per slot.
-    await admin
-      .from("raw_snapshots")
-      .delete()
-      .eq("feature", "volume")
-      .eq("day_of_week", dayOfWeek)
-      .eq("hour_of_day", hourOfDay)
-      .neq("snapshot_date", snapshotDate);
+    // Upsert only — see the file header comment on why prior weeks' rows
+    // for this slot are intentionally NOT deleted.
     await admin.from("raw_snapshots").upsert(volumeRows, { onConflict: "feature,source,snapshot_date,hour_of_day" });
   }
 }
@@ -100,14 +97,8 @@ async function refreshLaunch() {
     deploy_count: deployCount,
   }));
   if (launchRows.length > 0) {
-    // Same "no cross-week accumulation" rule as volume above.
-    await admin
-      .from("raw_snapshots")
-      .delete()
-      .eq("feature", "launch")
-      .eq("day_of_week", dayOfWeek)
-      .eq("hour_of_day", hourOfDay)
-      .neq("snapshot_date", snapshotDate);
+    // Upsert only — see the file header comment on why prior weeks' rows
+    // for this slot are intentionally NOT deleted.
     await admin.from("raw_snapshots").upsert(launchRows, { onConflict: "feature,source,snapshot_date,hour_of_day" });
   }
 }
