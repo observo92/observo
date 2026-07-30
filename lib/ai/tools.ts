@@ -149,6 +149,68 @@ export async function getHourlyPattern(feature: Feature, dayOfWeek: number) {
   };
 }
 
+// ANCHOR SCORE — a precomputed, deterministic 0-10 score based on where
+// today's actual number for this slot ranks (percentile) among all 168
+// day/hour slots' most-recent values, for the same feature. This exists
+// because letting the AI freely invent a 0-10 score from scratch causes it
+// to cluster heavily around "safe-looking" values (observed empirically:
+// 136/161 generated verdicts scored exactly 8, despite the underlying
+// numbers spanning a 10x range) -- a known failure mode of small LLMs used
+// as judges. The anchor gives the AI a mathematically precise, reproducible
+// starting point; the AI is instructed to only adjust it by a small amount
+// based on genuine qualitative signals (source diversity, confidence), and
+// the caller (verdict.ts) additionally clamps the AI's final score to a
+// tight range around this anchor so it can never drift far regardless of
+// what the model does.
+export async function getAnchorScore(
+  feature: Feature,
+  dayOfWeek: number,
+  hourOfDay: number
+): Promise<{ anchorScore: number; percentile: number; todayValue: number }> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("raw_snapshots")
+    .select("day_of_week, hour_of_day, snapshot_date, volume_usd, deploy_count")
+    .eq("feature", feature);
+  if (error) throw new Error(`getAnchorScore: ${error.message}`);
+
+  type Row = RawRow & { day_of_week: number; hour_of_day: number };
+  const rows = (data ?? []) as Row[];
+
+  // Group by slot, keep only each slot's most recent date's value (mirrors
+  // getTodayStats' definition of "today" for consistency).
+  const slotLatest = new Map<string, { date: string; value: number }>();
+  for (const row of rows) {
+    const key = `${row.day_of_week}-${row.hour_of_day}`;
+    const v = metricValue(row, feature);
+    const existing = slotLatest.get(key);
+    if (!existing || row.snapshot_date > existing.date) {
+      slotLatest.set(key, { date: row.snapshot_date, value: v });
+    } else if (row.snapshot_date === existing.date) {
+      slotLatest.set(key, { date: row.snapshot_date, value: existing.value + v });
+    }
+  }
+
+  const targetKey = `${dayOfWeek}-${hourOfDay}`;
+  const targetEntry = slotLatest.get(targetKey);
+  const todayValue = targetEntry?.value ?? 0;
+
+  const values = Array.from(slotLatest.values()).map((e) => e.value).sort((a, b) => a - b);
+  if (values.length === 0) {
+    return { anchorScore: 5, percentile: 50, todayValue };
+  }
+
+  // Percentile rank: fraction of slots with a value <= this slot's value.
+  let countBelowOrEqual = 0;
+  for (const v of values) {
+    if (v <= todayValue) countBelowOrEqual++;
+  }
+  const percentile = (countBelowOrEqual / values.length) * 100;
+  const anchorScore = Math.min(10, Math.max(0, Math.round(percentile / 10)));
+
+  return { anchorScore, percentile: Math.round(percentile * 10) / 10, todayValue };
+}
+
 export const TOOL_DEFINITIONS = [
   {
     type: "function" as const,

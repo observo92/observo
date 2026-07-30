@@ -6,7 +6,7 @@
 // call and can call more than one before answering.
 
 import Groq from "groq-sdk";
-import { TOOL_DEFINITIONS, callTool, type Feature } from "./tools";
+import { TOOL_DEFINITIONS, callTool, getAnchorScore, type Feature } from "./tools";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -34,7 +34,7 @@ export interface VerdictResult {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay: number): string {
+function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay: number, anchorScore: number): string {
   const dayName = DAY_NAMES[dayOfWeek];
   const subject =
     feature === "volume"
@@ -56,11 +56,11 @@ Use the tools to gather evidence before answering:
 3. Check whether today's activity is confirmed across multiple sources, not just one outlier (cross_check_sources).
 4. Optionally check get_historical_average and get_hourly_pattern for context — e.g. whether today is higher or lower than usual, or how this hour ranks against others.
 
-IMPORTANT — score and confidence are two SEPARATE things, do not mix them up:
-- "score" (0-10) reflects how busy/active THIS HOUR actually was, based on get_today_stats's real, actual number for the most recent occurrence of this slot — NOT get_historical_average. The historical average is a multi-week smoothed figure that can hide what's really happening right now (a real spike or a real lull); the product's whole point is showing users real, verifiable activity for a specific hour, not a blended estimate. Use get_historical_average only as supporting context (e.g. "today's number is well above the usual amount for this hour"), never as the number the score is actually judging. A huge number from get_today_stats backed by only 1-2 days of confidence is still a huge real number — score it as such. Only lower the score for weak/questionable activity (tiny numbers, single-wallet noise, one outlier source), never just because history is short.
+IMPORTANT — the score is NOT something you invent from scratch:
+- You've been given a STATISTICAL ANCHOR SCORE of ${anchorScore}/10, precomputed from where today's actual number for this slot ranks (percentile) among all 168 hour-of-week slots for this feature. This anchor is math, not a guess -- treat it as your starting point.
+- Your final "score" must stay within 2 points of this anchor (${anchorScore}) in either direction. You may adjust it up or down within that range based on genuine qualitative signals -- e.g. lower it slightly if cross_check_sources shows the number is really just one outlier source with no real breadth, or if get_sample_confidence shows this is backed by very little history. Do not just repeat the anchor with no thought, but do not invent a wildly different number either.
 - "confidence" (low/medium/high) reflects only how much historical data backs this slot (how many distinct days observed, from get_sample_confidence). Few days of history = low confidence, but that alone should NOT drag the score down — it just means the UI will show this is a newer read.
 - Mention the actual dollar/count numbers from get_today_stats in your reasoning (e.g. "around $2.3M in volume this hour") so the reasoning is concrete and about what really happened, not vague or averaged. If one source dominates today's total, you can still mention that, but don't let it override a genuinely large, real number — only discount it if today's total itself looks like noise (e.g. under a few thousand dollars from a single wallet).
-- A high score (8-10) should reflect genuinely high activity for this feature today, even from a single day of data. Reserve low scores (0-3) for genuinely quiet/small numbers, not just "low confidence".
 
 When you're done gathering evidence, respond with ONLY a JSON object (no markdown, no extra text) in this exact shape:
 {"score": <integer 0-10>, "confidence": "low"|"medium"|"high", "reasoning": "<plain English, 1-3 sentences>"}`;
@@ -73,8 +73,10 @@ export async function generateVerdict(
   hourOfDay: number,
   model: string = DEFAULT_MODEL
 ): Promise<VerdictResult> {
+  const { anchorScore } = await getAnchorScore(feature, dayOfWeek, hourOfDay);
+
   const messages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt(feature, mode, dayOfWeek, hourOfDay) },
+    { role: "system", content: systemPrompt(feature, mode, dayOfWeek, hourOfDay, anchorScore) },
     { role: "user", content: "Begin your analysis." },
   ];
 
@@ -121,7 +123,12 @@ export async function generateVerdict(
     const raw = (message.content ?? "").trim();
     const parsed = parseVerdictJson(raw);
     if (parsed) {
-      return { ...parsed, toolCallLog };
+      // Hard clamp: whatever the model decided, it can never end up more
+      // than 2 points away from the precomputed statistical anchor. This
+      // guarantees the score stays grounded in real data even if the model
+      // ignores the prompt's instruction to self-limit its adjustment.
+      const clampedScore = Math.min(anchorScore + 2, Math.max(anchorScore - 2, parsed.score));
+      return { ...parsed, score: Math.min(10, Math.max(0, clampedScore)), toolCallLog };
     }
 
     // Model answered but not in the expected JSON shape — ask it once,
