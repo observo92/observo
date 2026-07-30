@@ -260,3 +260,220 @@ body {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+/* ---------- Docs pages: TOC sidebar, callouts, timeline (About/Privacy/
+   Terms/API redesign) — heat scale reuses the same black->green gradient
+   as the heatmap (quiet->peak), not a separate color scheme. ---------- */
+.docs-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 44px;
+}
+.docs-toc {
+  position: sticky;
+  top: 76px;
+  align-self: start;
+  height: fit-content;
+}
+.docs-toc .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5B6478;
+  margin-bottom: 14px;
+}
+.toc-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0 7px 14px;
+  font-size: 13px;
+  color: #8A8A8A;
+  text-decoration: none;
+  cursor: pointer;
+  border-left: 2px solid #242424;
+  margin-left: 1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-link .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3A4258;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.toc-link:hover { color: #F2F2F2; }
+.toc-link.active { color: #F2F2F2; border-left-color: #3ecb63; }
+.toc-link.active .dot { background: #3ecb63; box-shadow: 0 0 8px rgba(62, 203, 99, 0.6); }
+
+/* Callout — border-left gradient emphasis box, reused for disclaimers */
+.callout {
+  position: relative;
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 12px;
+  padding: 16px 18px 16px 20px;
+  overflow: hidden;
+}
+.callout::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #141d16, #3ecb63);
+}
+.callout .k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #3ecb63;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Timeline (About page's 4-step AI process) */
+.tstep {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 14px;
+  position: relative;
+  padding-bottom: 26px;
+}
+.tstep:last-child { padding-bottom: 0; }
+.tstep .tline {
+  position: absolute;
+  left: 17px;
+  top: 34px;
+  bottom: -4px;
+  width: 2px;
+  background: #242424;
+}
+.tstep:last-child .tline { display: none; }
+.tstep .node {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0A0A0A;
+  z-index: 1;
+}
+.heat-tag {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+@media (max-width: 820px) {
+  .docs-shell { grid-template-columns: 1fr; gap: 0; }
+  .docs-toc {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    background: #0A0A0A;
+    padding: 10px 0 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #242424;
+  }
+  .docs-toc .eyebrow { display: none; }
+  .toc-link {
+    border-left: none;
+    padding: 6px 12px;
+    border: 1px solid #242424;
+    border-radius: 999px;
+    white-space: nowrap;
+    margin: 0;
+  }
+  .toc-link.active { border-color: #3ecb63; }
+}
+
+/* Privacy/Terms checklist — green-check / red-cross rows */
+.clist { list-style: none; margin: 0; padding: 0; }
+.clist li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #242424;
+  align-items: flex-start;
+}
+.clist li:last-child { border-bottom: none; }
+.clist .ic {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.clist .ic.yes { background: rgba(62, 203, 99, 0.12); color: #3ecb63; }
+.clist .ic.no { background: rgba(232, 72, 60, 0.12); color: #E8483C; }
+
+/* API docs — endpoint cards with method badges + rate limit bars */
+.endpoint-card { background: #141414; border: 1px solid #242424; border-radius: 14px; overflow: hidden; }
+.endpoint-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #242424;
+  background: #171717;
+  flex-wrap: wrap;
+}
+.method {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 5px;
+  letter-spacing: 0.02em;
+}
+.method.get { background: rgba(62, 203, 99, 0.12); color: #3ecb63; }
+.method.post { background: rgba(139, 107, 255, 0.14); color: #b7a3ff; }
+.endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #DADEE7; }
+.endpoint-body { padding: 16px; }
+
+.rate-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 999px;
+  padding: 8px 16px;
+  margin: 6px 10px 6px 0;
+  font-size: 13px;
+  color: #8A8A8A;
+}
+.rate-pill b { font-family: 'JetBrains Mono', monospace; color: #F2F2F2; }
+.rate-pill .bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: #242424;
+  overflow: hidden;
+  position: relative;
+}
+.rate-pill .bar i {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #1c3a24, #3ecb63);
+  display: block;
+}

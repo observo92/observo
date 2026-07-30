@@ -353,7 +353,7 @@ export default function Home() {
                       <div className="mb-1"><span className="text-gray-600">hash</span> {selected.payload_hash}</div>
                       <div><span className="text-gray-600">sig</span> {selected.signature}</div>
                     </div>
-                    <Link href="/about#verify" className="inline-block text-gray-500 underline">how this works</Link>
+                    <Link href="/about#a-verify" className="inline-block text-gray-500 underline">how this works</Link>
                   </div>
                 )}
               </div>
