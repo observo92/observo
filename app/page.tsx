@@ -4,16 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { VerdictCell } from "@/lib/types";
 import ObiIntro from "@/components/ObiIntro";
+import Ticker from "@/components/Ticker";
+import { useHeatmapTooltip, HeatmapTooltip } from "@/components/HeatmapTooltip";
 
 type Feature = "volume" | "launch";
 type Mode = "trader" | "deployer";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// 4-tier scale: quiet (blue) -> active (green) -> hot (gold) -> peak (red).
 function scoreColor(score: number): string {
-  if (score <= 3) return "#1C2B1F";
-  if (score <= 6) return "#3F8F52";
-  return "#3ECB63";
+  if (score <= 2) return "#16233a"; // quiet
+  if (score <= 5) return "#1e5c3a"; // active
+  if (score <= 7) return "#a1741f"; // hot
+  return "#7a231d"; // peak
 }
 
 function cellKey(day: number, hour: number): string {
@@ -28,6 +32,13 @@ function hourLabel(hour: number): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
 }
 
+function shortHourLabel(hour: number): string {
+  if (hour === 0) return "12am";
+  if (hour < 12) return `${hour}am`;
+  if (hour === 12) return "12pm";
+  return `${hour - 12}pm`;
+}
+
 function formatStat(cell: VerdictCell | undefined, feature: Feature): string | null {
   const total = cell?.raw_stats?.total;
   if (total === undefined || total === null) return null;
@@ -40,14 +51,25 @@ function formatStat(cell: VerdictCell | undefined, feature: Feature): string | n
   return `${count} launch${count === 1 ? "" : "es"}`;
 }
 
+// Short plain-English note for the tooltip, distinct from the fuller
+// `reasoning` text shown in the detail panel below the grid.
+function tooltipNote(cell: VerdictCell | undefined): string {
+  if (!cell) return "No data yet for this hour";
+  if (cell.score >= 8) return "Peak activity — expect it busy";
+  if (cell.score >= 6) return "Getting crowded";
+  if (cell.score >= 3) return "Steady, average activity";
+  return "Quiet stretch";
+}
+
 export default function Home() {
   const [tab, setTab] = useState<Feature>("volume");
   const [mode, setMode] = useState<Mode>("trader");
   const [grid, setGrid] = useState<VerdictCell[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<VerdictCell | null>(null);
-  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [verifyState, setVerifyState] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const tooltip = useHeatmapTooltip();
 
   const now = useMemo(() => new Date(), []);
   const nowDay = now.getUTCDay();
@@ -60,7 +82,7 @@ export default function Home() {
       .then((data) => {
         setGrid(data.grid ?? []);
         setSelected(null);
-        setVerifyOpen(false);
+        setWhyOpen(false);
       })
       .finally(() => setLoading(false));
   }, [tab, mode]);
@@ -76,14 +98,36 @@ export default function Home() {
   function openCell(cell: VerdictCell | undefined) {
     if (!cell) return;
     setSelected(cell);
-    setVerifyOpen(false);
+    setWhyOpen(false);
     setVerifyState("idle");
   }
 
-  async function toggleVerify() {
+  function cellTitle(day: number, hour: number): string {
+    return `${DAYS[day]} · ${shortHourLabel(hour)}`;
+  }
+
+  // Hover for mouse users; tap-to-toggle for touch (no native hover) —
+  // both funnel into the same tooltip state so the interaction feels
+  // consistent regardless of device.
+  function onCellEnter(e: React.MouseEvent, day: number, hour: number, cell: VerdictCell | undefined) {
+    tooltip.show(e.clientX, e.clientY, cellTitle(day, hour), tooltipNote(cell));
+  }
+  function onCellMove(e: React.MouseEvent) {
+    tooltip.move(e.clientX, e.clientY);
+  }
+  function onCellLeave() {
+    tooltip.hide();
+  }
+  function onCellTouch(e: React.TouchEvent, day: number, hour: number, cell: VerdictCell | undefined) {
+    const t = e.touches[0] ?? e.changedTouches[0];
+    if (t) tooltip.show(t.clientX, t.clientY, cellTitle(day, hour), tooltipNote(cell));
+    openCell(cell);
+  }
+
+  async function toggleWhy() {
     if (!selected) return;
-    const next = !verifyOpen;
-    setVerifyOpen(next);
+    const next = !whyOpen;
+    setWhyOpen(next);
     if (!next) return;
 
     setVerifyState("checking");
@@ -107,21 +151,32 @@ export default function Home() {
     return { text: tags.bad, cls: "bg-amber-500/10 text-amber-400" };
   };
 
-  function aiSaysText(): { html: string } {
+  function verdictHeadline(): { html: string } {
     const score = currentCell?.score ?? 0;
     if (!currentCell) {
       return { html: `Still gathering data for this hour — check back soon.` };
     }
     if (tab === "volume") {
-      if (score >= 7) return { html: `Right now looks <b class="text-emerald-400">pretty good</b> for buying — ${currentCell.reasoning}` };
-      if (score >= 4) return { html: `Right now is <b class="text-gray-400">fairly average</b> — ${currentCell.reasoning}` };
+      if (score >= 7) return { html: `Volume's <b class="text-emerald-400">building fast</b> — ${currentCell.reasoning}` };
+      if (score >= 4) return { html: `Right now is <b class="text-gray-300">fairly average</b> — ${currentCell.reasoning}` };
       return { html: `Right now looks <b class="text-amber-400">a bit quiet</b> — ${currentCell.reasoning}` };
     } else {
       if (score >= 7) return { html: `Right now looks <b class="text-emerald-400">good for launching</b> — ${currentCell.reasoning}` };
-      if (score >= 4) return { html: `Right now is <b class="text-gray-400">a normal window</b> — ${currentCell.reasoning}` };
+      if (score >= 4) return { html: `Right now is <b class="text-gray-300">a normal window</b> — ${currentCell.reasoning}` };
       return { html: `Right now is <b class="text-amber-400">pretty crowded</b> — ${currentCell.reasoning}` };
     }
   }
+
+  const confidencePct = currentCell
+    ? currentCell.confidence === "high"
+      ? 92
+      : currentCell.confidence === "medium"
+      ? 65
+      : 32
+    : 0;
+
+  const scannedStat = formatStat(currentCell, tab);
+  const sourceCount = currentCell?.raw_stats?.bySource ? Object.keys(currentCell.raw_stats.bySource).length : 0;
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-6 flex-1 w-full">
@@ -131,17 +186,34 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="card p-5 mb-4">
-        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="breathe">✨</span> Observo AI says
+      {/* Obi's verdict card — signature element */}
+      <div className="card verdict-glow p-5 mb-4">
+        <div className="flex items-start gap-3.5">
+          <div className="obi-avatar-mini" />
+          <div className="flex-1 min-w-0">
+            <div className="mono text-[11px] text-[#8b6bff] tracking-wide uppercase mb-1 flex items-center gap-2">
+              <span className="breathe">✦</span> Obi&apos;s read on right now
+            </div>
+            <p className="font-display text-[17px] font-semibold leading-snug mb-3" dangerouslySetInnerHTML={{ __html: verdictHeadline().html }} />
+
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="text-[11px] text-gray-500 mono whitespace-nowrap">Confidence</span>
+              <div className="confidence-bar">
+                <div className="confidence-fill" style={{ width: `${confidencePct}%` }} />
+              </div>
+              <span className="text-[11px] text-gray-500 mono whitespace-nowrap">{currentCell?.confidence ?? "—"}</span>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap text-[11px] text-gray-500 mono">
+              {scannedStat && <span>{scannedStat}</span>}
+              {sourceCount > 0 && <span>· {sourceCount} source{sourceCount === 1 ? "" : "s"} cross-referenced</span>}
+              {currentCell?.signed_at && <span>· signed {new Date(currentCell.signed_at).toLocaleTimeString()}</span>}
+            </div>
           </div>
-          {formatStat(currentCell, tab) && (
-            <div className="mono text-xs text-gray-400">{formatStat(currentCell, tab)}</div>
-          )}
         </div>
-        <p className="text-[15px] leading-relaxed" dangerouslySetInnerHTML={{ __html: aiSaysText().html }} />
       </div>
+
+      <Ticker />
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button
@@ -175,64 +247,60 @@ export default function Home() {
       <div className="card p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="font-semibold text-sm">{tab === "volume" ? "Best hours to trade" : "Best hours to launch"}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Tap any hour to see why</div>
+            <div className="font-display font-semibold text-sm">{tab === "volume" ? "Best hours to trade" : "Best hours to launch"}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Hover or tap any hour for Obi&apos;s note</div>
           </div>
-          <div className="text-xs text-gray-500">Today, {DAYS[nowDay]}</div>
+          <div className="text-xs text-gray-500">{DAYS[nowDay]} · now {shortHourLabel(nowHour)}</div>
         </div>
 
         <div className="scan-wrap">
           <div className="scan-line" />
-          <div className="flex gap-1 mb-1">
-            {Array.from({ length: 24 }, (_, h) => {
-              const cell = byKey.get(cellKey(nowDay, h));
-              return (
-                <div
-                  key={h}
-                  className={`cell flex-1 h-9 ${cell && cell.score >= 7 ? "cell-hot" : ""}`}
-                  style={{
-                    background: cell ? scoreColor(cell.score) : "#1A1A1A",
-                    outline: h === nowHour ? "2px solid #FBBF24" : undefined,
-                  }}
-                  onClick={() => openCell(cell)}
-                />
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-[9px] text-gray-600 mb-4 px-0.5">
-            <span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span>
-          </div>
-
           <div className="text-xs text-gray-500 mb-2">This week</div>
           <div className="overflow-x-auto -mx-1 px-1">
-            <div className="min-w-[520px]">
+            <div className="min-w-[560px]">
               {DAYS.map((day, dayIdx) => (
                 <div key={day} className="flex items-center gap-1 mb-1">
-                  <div className="w-8 text-[10px] text-gray-500">{day}</div>
+                  <div className="w-8 text-[10px] text-gray-500 mono">{day}</div>
                   {Array.from({ length: 24 }, (_, h) => {
                     const cell = byKey.get(cellKey(dayIdx, h));
                     return (
                       <div
                         key={h}
-                        className={`cell flex-1 h-4 ${cell && cell.score >= 7 ? "cell-hot" : ""}`}
+                        className={`cell flex-1 h-6 ${cell && cell.score >= 8 ? "cell-hot" : ""}`}
                         style={{
                           background: cell ? scoreColor(cell.score) : "#1A1A1A",
                           outline: dayIdx === nowDay && h === nowHour ? "2px solid #FBBF24" : undefined,
                         }}
                         onClick={() => openCell(cell)}
+                        onMouseEnter={(e) => onCellEnter(e, dayIdx, h, cell)}
+                        onMouseMove={onCellMove}
+                        onMouseLeave={onCellLeave}
+                        onTouchStart={(e) => onCellTouch(e, dayIdx, h, cell)}
                       />
                     );
                   })}
                 </div>
               ))}
+              <div className="flex gap-1 mt-1 pl-9">
+                {Array.from({ length: 24 }, (_, h) => (
+                  <div key={h} className="flex-1 text-center text-[8.5px] text-gray-600 mono">
+                    {h % 3 === 0 ? shortHourLabel(h) : ""}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-800 text-[11px] text-gray-500 flex-wrap">
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#1C2B1F" }} /> Quiet</div>
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#3F8F52" }} /> Active</div>
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#3ECB63" }} /> Hot</div>
+          <span>Quiet</span>
+          <div className="flex gap-0.5">
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#16233a" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#1e5c3a" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#a1741f" }} />
+            <span className="w-3.5 h-2 rounded-sm inline-block" style={{ background: "#7a231d" }} />
+          </div>
+          <span>Peak</span>
           <div className="flex items-center gap-1 ml-1"><span className="w-2.5 h-2.5 rounded-full inline-block border-2 border-amber-400" /> Now</div>
         </div>
         {loading && <div className="text-xs text-gray-500 mt-3">Loading...</div>}
@@ -241,7 +309,7 @@ export default function Home() {
       {selected && (
         <div className="card p-5 mb-4">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <div className="font-semibold">{hourLabel(selected.hour_of_day)} · {DAYS[selected.day_of_week]}</div>
+            <div className="font-display font-semibold">{hourLabel(selected.hour_of_day)} · {DAYS[selected.day_of_week]}</div>
             <div className={`pill px-3 py-1 text-xs font-medium ${tagFor(selected.score).cls}`}>{tagFor(selected.score).text}</div>
           </div>
           <p className="text-sm text-gray-300 leading-relaxed">{selected.reasoning}</p>
@@ -262,17 +330,12 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-gray-800">
-            <button onClick={toggleVerify} className="verify-trigger flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-              <span>✓</span> Checked &amp; signed by Observo AI
+            <button onClick={toggleWhy} className="verify-trigger flex items-center gap-1.5 text-[11px] text-[#8b6bff] font-medium">
+              <span>✦</span> Why this window? &amp; verify signature
               <span className="text-gray-600">·</span>
-              <span className="text-gray-500">
-                {verifyState === "idle" && "tap to verify"}
-                {verifyState === "checking" && "verifying..."}
-                {verifyState === "valid" && "verified"}
-                {verifyState === "invalid" && "invalid"}
-              </span>
+              <span className="text-gray-500">{whyOpen ? "hide" : "expand"}</span>
             </button>
-            <div className={`verify-panel ${verifyOpen ? "open" : ""}`}>
+            <div className={`verify-panel ${whyOpen ? "open" : ""}`}>
               <div className="bg-[#1C1C1C] rounded-xl p-3.5 mt-3 text-[11px]">
                 {verifyState === "checking" && (
                   <div className="flex items-center gap-2 text-gray-400">
@@ -302,11 +365,13 @@ export default function Home() {
 
       <Link href="/api-docs" className="card p-5 flex items-center justify-between gap-3 flex-wrap mb-4 hover:border-gray-600 transition-colors">
         <div>
-          <div className="text-sm font-semibold">Building a bot?</div>
+          <div className="text-sm font-semibold font-display">Building a bot?</div>
           <div className="text-xs text-gray-500 mt-0.5">Observo has an API with the same AI verdicts, ready for agents.</div>
         </div>
         <code className="text-[11px] mono bg-[#1C1C1C] border border-gray-700 rounded-lg px-3 py-2 text-gray-400">/api/v1/heatmap</code>
       </Link>
+
+      <HeatmapTooltip state={tooltip.state} />
     </div>
   );
 }

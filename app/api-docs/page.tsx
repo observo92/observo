@@ -1,11 +1,11 @@
 export default function ApiDocsPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 py-10 flex-1 w-full">
-      <h1 className="text-2xl font-bold mb-2">API</h1>
+      <h1 className="text-2xl font-bold font-display mb-2">API</h1>
       <p className="text-gray-500 mb-8">Same AI verdicts Observo shows you, built for bots and agents. Free, no wallet connection required.</p>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-3">Get the heatmap grid</h2>
+        <h2 className="font-semibold font-display mb-3">Get the heatmap grid</h2>
         <div className="bg-[#1C1C1C] border border-gray-700 rounded-xl p-3.5 mono text-[12.5px] text-gray-400 mb-3 overflow-x-auto">
           GET https://observo.xyz/api/v1/heatmap?feature=volume&amp;mode=trader
         </div>
@@ -31,7 +31,7 @@ export default function ApiDocsPage() {
       </div>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-3">Parameters</h2>
+        <h2 className="font-semibold font-display mb-3">Parameters</h2>
         <table className="w-full text-sm text-gray-400">
           <tbody>
             <tr className="border-b border-gray-800">
@@ -47,7 +47,7 @@ export default function ApiDocsPage() {
       </div>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-3">Verify a signature</h2>
+        <h2 className="font-semibold font-display mb-3">Verify a signature</h2>
         <p className="text-sm text-gray-400 leading-relaxed mb-3">
           Every verdict is signed the moment it&apos;s generated with Ed25519. Verify independently
           without trusting Observo&apos;s servers — or just POST to our verify endpoint:
@@ -69,7 +69,7 @@ const isValid = verify(
       </div>
 
       <div className="card p-6">
-        <h2 className="font-semibold mb-3">Rate limits</h2>
+        <h2 className="font-semibold font-display mb-3">Rate limits</h2>
         <table className="w-full text-sm text-gray-400">
           <tbody>
             <tr className="border-b border-gray-800">

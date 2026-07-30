@@ -1,16 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 * { font-family: 'Inter', sans-serif; }
-body { background: #0A0A0A; color: #F2F2F2; }
+body {
+  background:
+    radial-gradient(ellipse 900px 500px at 20% -10%, rgba(139,107,255,0.08), transparent),
+    radial-gradient(ellipse 700px 400px at 90% 10%, rgba(57,255,136,0.05), transparent),
+    #0A0A0A;
+  color: #F2F2F2;
+}
+.font-display { font-family: 'Sora', sans-serif; letter-spacing: -0.01em; }
 .mono { font-family: 'JetBrains Mono', monospace; }
 .card { background: #141414; border: 1px solid #242424; border-radius: 20px; position: relative; z-index: 2; }
 .cell { border-radius: 8px; transition: transform .12s ease; cursor: pointer; }
 .cell:hover { transform: scale(1.12); }
 .cell-hot { animation: cell-pulse 1.8s ease-in-out infinite; }
 @keyframes cell-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(62, 203, 99, 0.55); }
-  50% { box-shadow: 0 0 0 4px rgba(62, 203, 99, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 72, 60, 0.55); }
+  50% { box-shadow: 0 0 0 4px rgba(232, 72, 60, 0); }
 }
 .pill { border-radius: 999px; }
 .breathe { animation: breathe 2.5s ease-in-out infinite; }
@@ -37,7 +44,7 @@ body { background: #0A0A0A; color: #F2F2F2; }
     rgba(11, 125, 191, 0.16) 85%,
     rgba(11, 125, 191, 0.28) 100%
   );
-  mix-blend-mode: multiply;
+  mix-blend-mode: screen;
   animation: scan-sweep 4.5s linear infinite;
   pointer-events: none;
   z-index: 5;
@@ -150,4 +157,119 @@ body { background: #0A0A0A; color: #F2F2F2; }
 .obi-buy-wrap:hover .obi-tooltip {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Obi verdict card avatar — small idle version of the front sprite with
+   a pulsing AI-glow ring, used in the "Obi's read on right now" card. */
+.obi-avatar-mini {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-image: url('/obi-front.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 140%;
+}
+.obi-avatar-mini::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid #8b6bff;
+  opacity: 0.5;
+  animation: obi-ring 2.4s ease-out infinite;
+}
+@keyframes obi-ring {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* Confidence bar in the verdict card */
+.confidence-bar {
+  flex: 1;
+  height: 5px;
+  background: #1C1C1C;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid #242424;
+}
+.confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b6bff, #b7a3ff);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+
+/* Verdict card AI-glow border */
+.verdict-glow {
+  position: relative;
+}
+.verdict-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(139,107,255,0.5), transparent 45%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hover/tap tooltip for heatmap cells */
+.hm-tooltip {
+  position: fixed;
+  background: #1C2129;
+  border: 1px solid #2A323D;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 50;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.hm-tooltip.visible { opacity: 1; transform: translateY(0); }
+.hm-tooltip .t-title { color: #F2F2F2; font-weight: 600; margin-bottom: 2px; }
+.hm-tooltip .t-sub { color: #8A8A8A; }
+
+/* Ticker tape */
+.ticker-wrap {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #242424;
+  border-radius: 12px;
+  background: #141414;
+  padding: 12px 0;
+}
+.ticker-track {
+  display: flex;
+  gap: 36px;
+  animation: ticker-scroll 26s linear infinite;
+  white-space: nowrap;
+  padding-left: 20px;
+}
+.ticker-wrap:hover .ticker-track { animation-play-state: paused; }
+.ticker-item {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: #8A8A8A;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ticker-item b { color: #F2F2F2; }
+.ticker-item .up { color: #39ff88; }
+.ticker-item .down { color: #E8483C; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }

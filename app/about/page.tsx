@@ -1,11 +1,11 @@
 export default function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 py-10 flex-1 w-full">
-      <h1 className="text-2xl font-bold mb-2">About Observo</h1>
+      <h1 className="text-2xl font-bold font-display mb-2">About Observo</h1>
       <p className="text-gray-500 mb-8">Timing, made obvious — with an AI that shows its work.</p>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-2">What Observo does</h2>
+        <h2 className="font-semibold font-display mb-2">What Observo does</h2>
         <p className="text-sm text-gray-400 leading-relaxed">
           Observo watches activity across Robinhood Chain — trading volume and new token launches on
           Pons, flap.sh, and bow.fun — and turns it into two simple heatmaps: when volume tends to be
@@ -15,7 +15,7 @@ export default function AboutPage() {
       </div>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-2">What the AI actually does, step by step</h2>
+        <h2 className="font-semibold font-display mb-2">What the AI actually does, step by step</h2>
         <p className="text-sm text-gray-400 leading-relaxed mb-4">
           A plain average can be misleading — a &quot;busy hour&quot; might just be a couple of bots trading
           back and forth. So instead of turning numbers straight into a sentence, Observo&apos;s AI goes
@@ -46,7 +46,7 @@ export default function AboutPage() {
       </div>
 
       <div id="verify" className="card p-6 mb-5">
-        <h2 className="font-semibold mb-2">How we verify it</h2>
+        <h2 className="font-semibold font-display mb-2">How we verify it</h2>
         <p className="text-sm text-gray-400 leading-relaxed">
           Every verdict Observo publishes is cryptographically signed the moment it&apos;s created. That
           means the reasoning and score you see can&apos;t be quietly changed after the fact — if even one
@@ -56,7 +56,7 @@ export default function AboutPage() {
       </div>
 
       <div className="card p-6 mb-5">
-        <h2 className="font-semibold mb-2">Two ways to read the heatmap</h2>
+        <h2 className="font-semibold font-display mb-2">Two ways to read the heatmap</h2>
         <p className="text-sm text-gray-400 leading-relaxed">
           The same hour can mean different things depending on what you&apos;re doing. High volume is
           great if you&apos;re trading, but a lot of tokens launching at once can bury your own launch in
@@ -66,7 +66,7 @@ export default function AboutPage() {
       </div>
 
       <div className="card p-6">
-        <h2 className="font-semibold mb-2">Independent, not affiliated</h2>
+        <h2 className="font-semibold font-display mb-2">Independent, not affiliated</h2>
         <p className="text-sm text-gray-400 leading-relaxed">
           Observo is not affiliated with Robinhood, Pons, flap.sh, or bow.fun. We simply observe
           public on-chain activity. Nothing here is financial advice — Observo describes patterns in

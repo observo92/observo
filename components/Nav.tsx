@@ -24,7 +24,7 @@ export default function Nav() {
             O
           </div>
           <div>
-            <div className="font-bold text-[15px] leading-none">Observo</div>
+            <div className="font-bold font-display text-[15px] leading-none">Observo</div>
             <div className="text-[10px] text-gray-500 mt-0.5">Powered by AI</div>
           </div>
         </Link>
