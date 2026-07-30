@@ -102,34 +102,21 @@ body {
   to   { background-position: -128px 0; }
 }
 
-/* Obi intro card — idle bounce/breathing mascot + disabled "Buy $OBI"
-   button. obi-front.png is the single clean front-facing sprite (no
-   turnaround — see ObiIntro.tsx comment for why). Bottom-anchored so the
-   bounce reads as Obi hopping in place on the floor, not floating. */
-.obi-wave-wrap {
+/* Obi intro card — looping video clip (9:16 portrait, obi-video.mp4)
+   + disabled "Buy $OBI" button. Height-constrained so it sits at a
+   similar visual scale to the old sprite without stretching the card. */
+.obi-video-wrap {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 90px;
+  height: 160px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0A0A0A;
 }
-.obi-idle-sprite {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 140px;
-  height: 140px;
-  background-image: url('/obi-front.png');
-  background-repeat: no-repeat;
-  background-size: 140px 140px;
-  image-rendering: -webkit-optimize-contrast;
-  transform-origin: bottom center;
-  animation: obi-idle-bounce 1.8s ease-in-out infinite;
-}
-@keyframes obi-idle-bounce {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  15%      { transform: translateY(0) scale(1.05, 0.92); }  /* squash on contact */
-  45%      { transform: translateY(-14px) scale(0.97, 1.05); } /* stretch at peak */
-  75%      { transform: translateY(0) scale(1.05, 0.92); }  /* squash on landing */
-  85%      { transform: translateY(0) scale(1, 1); }
+.obi-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
 .obi-buy-btn {
