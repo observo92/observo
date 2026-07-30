@@ -1,8 +1,26 @@
-// Public read endpoint for the homepage ticker tape — small, cheap
-// aggregates over raw_snapshots (real numbers, not invented placeholders).
-// Reads via the anon-key client so it respects the same RLS policy as
-// the heatmap endpoint. Recomputed fresh on every request; the underlying
-// table is small enough that this doesn't need caching yet.
+// Public read endpoint for the homepage ticker tape.
+//
+// Launch numbers: sourced from Pons's own analytics endpoint (see
+// fetchPonsAnalytics below), NOT from our own raw_snapshots.launch data.
+// Our internal Blockscout-based launch scan (app/api/cron/raw-data) was
+// found to badly undercount Pons activity — its 1.5h scan window issues
+// getLogs() calls in parallel (Promise.all) against Blockscout's legacy
+// API, which only tolerates ~1 request every couple seconds; concurrent
+// calls get 403/429'd, and any timeout/failure silently drops that hour's
+// data rather than partially saving it. Cross-checked directly against
+// Blockscout logs: our stored total for Pons on 2026-07-29 was 96 events,
+// while a single 50k-block sample from that same day alone returned 500+
+// events. Pons's own dashboard (ponsfamily.com/analytics, backed by Dune)
+// reports 24h launch counts in the thousands — consistent with the
+// Blockscout sample, not with our stored number. Fixing the underlying
+// scanner (sequential rate-limited calls + incremental sync_state
+// checkpointing) is a separate, larger task; this fixes the immediate
+// user-facing symptom (wildly wrong "busiest launchpad" ticker stat) by
+// pointing at a reliable external source instead.
+//
+// Volume numbers: still sourced from our own raw_snapshots (GeckoTerminal
+// pool data, not launch scanning) — that pipeline is unaffected by the
+// Blockscout rate-limit issue above and has no known accuracy problem.
 
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
@@ -36,10 +54,34 @@ function sourceLabel(id: string): string {
   return SOURCE_LABELS[id] ?? id;
 }
 
+interface PonsAnalytics {
+  totals: {
+    launches24h: number;
+    volumeUsd24h: number;
+  };
+}
+
+// Undocumented endpoint discovered via network inspection of Pons's own
+// analytics page (it's what powers ponsfamily.com/analytics client-side),
+// not an official published API. Could change or disappear without
+// notice — always call this through the try/catch in GET() below and
+// fall back to internal data if it fails.
+async function fetchPonsAnalytics(): Promise<PonsAnalytics | null> {
+  try {
+    const res = await fetch("https://www.ponsfamily.com/api/pons-analytics?v=dune-v2", {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as PonsAnalytics;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: volToday }, { data: launchToday }, { data: volYesterdaySameHour }] = await Promise.all([
+  const [{ data: volToday }, { data: volHistory }, ponsAnalytics] = await Promise.all([
     supabase
       .from("raw_snapshots")
       .select("source, volume_usd")
@@ -47,20 +89,16 @@ export async function GET() {
       .eq("snapshot_date", today),
     supabase
       .from("raw_snapshots")
-      .select("source, deploy_count")
-      .eq("feature", "launch")
-      .eq("snapshot_date", today),
-    supabase
-      .from("raw_snapshots")
       .select("volume_usd, snapshot_date")
       .eq("feature", "volume")
       .order("snapshot_date", { ascending: false })
       .limit(200),
+    fetchPonsAnalytics(),
   ]);
 
   const items: TickerItem[] = [];
 
-  // Total volume today + top source
+  // Total volume today (our own DEX pool tracking) + top pool
   if (volToday && volToday.length > 0) {
     const bySource: Record<string, number> = {};
     let total = 0;
@@ -69,7 +107,7 @@ export async function GET() {
       total += v;
       bySource[row.source] = (bySource[row.source] ?? 0) + v;
     }
-    items.push({ label: "Volume today", value: fmtUsd(total), direction: "flat" });
+    items.push({ label: "DEX volume today", value: fmtUsd(total), direction: "flat" });
 
     const sorted = Object.entries(bySource).sort((a, b) => b[1] - a[1]);
     if (sorted.length > 0) {
@@ -77,26 +115,16 @@ export async function GET() {
     }
   }
 
-  // Total launches today + top launchpad
-  if (launchToday && launchToday.length > 0) {
-    const bySource: Record<string, number> = {};
-    let total = 0;
-    for (const row of launchToday) {
-      const v = row.deploy_count ?? 0;
-      total += v;
-      bySource[row.source] = (bySource[row.source] ?? 0) + v;
-    }
-    items.push({ label: "Launches today", value: `${Math.round(total)}`, direction: "flat" });
-
-    const sorted = Object.entries(bySource).sort((a, b) => b[1] - a[1]);
-    if (sorted.length > 0) {
-      items.push({ label: "Busiest launchpad", value: `${sourceLabel(sorted[0][0])} · ${Math.round(sorted[0][1])}`, direction: "flat" });
-    }
+  // Pons launch/volume stats from their own analytics — see comment above
+  // on why this isn't sourced from our own launch scanner.
+  if (ponsAnalytics) {
+    items.push({ label: "Pons launches (24h)", value: `${ponsAnalytics.totals.launches24h.toLocaleString()}`, direction: "flat" });
+    items.push({ label: "Pons volume (24h)", value: fmtUsd(ponsAnalytics.totals.volumeUsd24h), direction: "flat" });
   }
 
   // Distinct days of history collected (confidence signal)
-  if (volYesterdaySameHour) {
-    const distinctDates = new Set(volYesterdaySameHour.map((r) => r.snapshot_date));
+  if (volHistory) {
+    const distinctDates = new Set(volHistory.map((r) => r.snapshot_date));
     items.push({ label: "Days of history", value: `${distinctDates.size}`, direction: "flat" });
   }
 
