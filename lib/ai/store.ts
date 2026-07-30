@@ -40,7 +40,7 @@ export async function generateAndStoreVerdict(
       score: result.score,
       confidence: result.confidence,
       reasoning: result.reasoning,
-      raw_stats: result.toolCallLog.find((t) => t.tool === "get_current_hour_stats")?.result ?? null,
+      raw_stats: result.toolCallLog.find((t) => t.tool === "get_today_stats")?.result ?? null,
       tool_calls: result.toolCallLog,
       payload_hash: hash,
       signature,

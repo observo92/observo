@@ -18,13 +18,7 @@ function metricValue(row: RawRow, feature: Feature): number {
   return feature === "volume" ? row.volume_usd ?? 0 : row.deploy_count ?? 0;
 }
 
-// SCAN — what actually happened, historically, in this exact hour-of-week
-// slot. Aggregates across every calendar date collected so far.
-export async function getCurrentHourStats(
-  feature: Feature,
-  dayOfWeek: number,
-  hourOfDay: number
-) {
+async function fetchSlotRows(feature: Feature, dayOfWeek: number, hourOfDay: number): Promise<RawRow[]> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("raw_snapshots")
@@ -32,49 +26,64 @@ export async function getCurrentHourStats(
     .eq("feature", feature)
     .eq("day_of_week", dayOfWeek)
     .eq("hour_of_day", hourOfDay);
+  if (error) throw new Error(`fetchSlotRows: ${error.message}`);
+  return (data ?? []) as RawRow[];
+}
 
-  if (error) throw new Error(`getCurrentHourStats: ${error.message}`);
-  const rows = (data ?? []) as RawRow[];
+// TODAY'S ACTUAL — what really happened on the most recent calendar date
+// this slot was observed (i.e. this week's occurrence, not an average).
+// This is the number the score and reasoning should be based on: users
+// expect a "timing heatmap" to reflect real, verifiable activity for this
+// specific hour, not a smoothed multi-week average. A verifiable, real
+// number also matches the product's signature/verify feature — averages
+// can't be pointed back to one real moment in the same way.
+export async function getTodayStats(feature: Feature, dayOfWeek: number, hourOfDay: number) {
+  const rows = await fetchSlotRows(feature, dayOfWeek, hourOfDay);
   if (rows.length === 0) {
-    return { sampleSize: 0, total: 0, average: 0, bySource: {} };
+    return { snapshotDate: null, total: 0, bySource: {} };
   }
+  const latestDate = rows.reduce((max, r) => (r.snapshot_date > max ? r.snapshot_date : max), rows[0].snapshot_date);
+  const todayRows = rows.filter((r) => r.snapshot_date === latestDate);
 
   const bySource: Record<string, number> = {};
   let total = 0;
-  const distinctDates = new Set<string>();
-  for (const row of rows) {
+  for (const row of todayRows) {
     const v = metricValue(row, feature);
     total += v;
     bySource[row.source] = (bySource[row.source] ?? 0) + v;
-    distinctDates.add(row.snapshot_date);
   }
 
+  return { snapshotDate: latestDate, total, bySource };
+}
+
+// HISTORICAL AVERAGE — the typical amount for this slot, averaged across
+// every distinct calendar day collected so far. This is NOT what the score
+// should be based on (see getTodayStats) — it exists only as supporting
+// context (e.g. "is today higher or lower than usual for this hour?") and
+// to feed getSampleConfidence's distinct-day count.
+export async function getHistoricalAverage(feature: Feature, dayOfWeek: number, hourOfDay: number) {
+  const rows = await fetchSlotRows(feature, dayOfWeek, hourOfDay);
+  if (rows.length === 0) {
+    return { distinctDaysObserved: 0, average: 0 };
+  }
+  const distinctDates = new Set<string>();
+  let total = 0;
+  for (const row of rows) {
+    total += metricValue(row, feature);
+    distinctDates.add(row.snapshot_date);
+  }
   return {
-    sampleSize: distinctDates.size,
-    total,
+    distinctDaysObserved: distinctDates.size,
     average: total / distinctDates.size,
-    bySource,
   };
 }
 
 // VERIFY — how much historical evidence actually backs this slot. Directly
 // feeds the AI's confidence rating: 1-2 days of data is not the same
 // reliability as 4+ weeks.
-export async function getSampleConfidence(
-  feature: Feature,
-  dayOfWeek: number,
-  hourOfDay: number
-) {
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from("raw_snapshots")
-    .select("snapshot_date")
-    .eq("feature", feature)
-    .eq("day_of_week", dayOfWeek)
-    .eq("hour_of_day", hourOfDay);
-
-  if (error) throw new Error(`getSampleConfidence: ${error.message}`);
-  const distinctDates = new Set((data ?? []).map((r) => r.snapshot_date));
+export async function getSampleConfidence(feature: Feature, dayOfWeek: number, hourOfDay: number) {
+  const rows = await fetchSlotRows(feature, dayOfWeek, hourOfDay);
+  const distinctDates = new Set(rows.map((r) => r.snapshot_date));
   return {
     distinctDaysObserved: distinctDates.size,
     recommendation:
@@ -86,18 +95,15 @@ export async function getSampleConfidence(
   };
 }
 
-// CROSS-CHECK — is the pattern broad (multiple independent launchpads/dexes
-// agree) or is it one outlier pool/launchpad skewing the whole slot? A
-// verdict backed by 1 source is much weaker than one backed by 3.
-export async function crossCheckSources(
-  feature: Feature,
-  dayOfWeek: number,
-  hourOfDay: number
-) {
-  const stats = await getCurrentHourStats(feature, dayOfWeek, hourOfDay);
-  const sources = Object.entries(stats.bySource).sort((a, b) => b[1] - a[1]);
+// CROSS-CHECK — is TODAY's activity broad (multiple independent
+// launchpads/dexes agree) or is it one outlier pool/launchpad skewing the
+// whole slot? Based on today's actual numbers, not the historical
+// aggregate, since that's what the score is judging.
+export async function crossCheckSources(feature: Feature, dayOfWeek: number, hourOfDay: number) {
+  const today = await getTodayStats(feature, dayOfWeek, hourOfDay);
+  const sources = Object.entries(today.bySource).sort((a, b) => b[1] - a[1]);
   const topSource = sources[0];
-  const topShare = topSource && stats.total > 0 ? topSource[1] / stats.total : 0;
+  const topShare = topSource && today.total > 0 ? topSource[1] / today.total : 0;
 
   return {
     numberOfSourcesActive: sources.length,
@@ -108,8 +114,10 @@ export async function crossCheckSources(
 }
 
 // Context — where does this hour rank among all 24 hours on the same day
-// of week? Lets the AI say things like "this is the 3rd busiest hour on
-// Fridays" instead of just a raw number with no reference point.
+// of week? Uses historical averages (not today's single figure) since it's
+// answering "which hours of this day tend to be busiest", a multi-week
+// question by nature. Lets the AI say things like "this is the 3rd busiest
+// hour on Fridays" instead of just a raw number with no reference point.
 export async function getHourlyPattern(feature: Feature, dayOfWeek: number) {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
@@ -145,9 +153,22 @@ export const TOOL_DEFINITIONS = [
   {
     type: "function" as const,
     function: {
-      name: "get_current_hour_stats",
+      name: "get_today_stats",
       description:
-        "Get the historical activity total/average for this exact hour-of-week slot, broken down by source (dex or launchpad). Always call this first.",
+        "Get what actually happened on the most recent day this hour-of-week slot was observed (the real, verifiable number for this specific hour), broken down by source. Always call this first — this is what your score and reasoning should be based on.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_historical_average",
+      description:
+        "Get the typical (average) amount for this slot across all past weeks observed. Use this only as context (e.g. to say whether today is higher or lower than usual) — never as the basis for the score itself.",
       parameters: {
         type: "object",
         properties: {},
@@ -173,7 +194,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "cross_check_sources",
       description:
-        "Check whether this hour's activity is confirmed across multiple independent sources (dexes/launchpads) or driven by a single outlier. A pattern confirmed by multiple sources is more trustworthy.",
+        "Check whether today's activity is confirmed across multiple independent sources (dexes/launchpads) or driven by a single outlier. A pattern confirmed by multiple sources is more trustworthy.",
       parameters: {
         type: "object",
         properties: {},
@@ -186,7 +207,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "get_hourly_pattern",
       description:
-        "Get how this hour ranks against all 24 hours of the same day of week, for context (e.g. '3rd busiest hour of the day').",
+        "Get how this hour ranks against all 24 hours of the same day of week (by historical average), for context (e.g. '3rd busiest hour of the day').",
       parameters: {
         type: "object",
         properties: {},
@@ -203,8 +224,10 @@ export async function callTool(
   hourOfDay: number
 ): Promise<unknown> {
   switch (name) {
-    case "get_current_hour_stats":
-      return getCurrentHourStats(feature, dayOfWeek, hourOfDay);
+    case "get_today_stats":
+      return getTodayStats(feature, dayOfWeek, hourOfDay);
+    case "get_historical_average":
+      return getHistoricalAverage(feature, dayOfWeek, hourOfDay);
     case "get_sample_confidence":
       return getSampleConfidence(feature, dayOfWeek, hourOfDay);
     case "cross_check_sources":
