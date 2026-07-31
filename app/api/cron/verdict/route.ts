@@ -16,9 +16,15 @@ import { generateAndStoreVerdict } from "@/lib/ai/store";
 
 export const maxDuration = 60; // Hobby plan cap
 
-function currentSlot() {
+// This route runs a few minutes after /api/cron/raw-data (same hour, later
+// minute). raw-data now writes fresh data for the hour that just ENDED, not
+// the hour that just started (see its file for why) -- so verdict
+// generation must target that same just-ended hour too, or it would
+// generate a verdict for the wrong slot using stale data.
+function targetSlot() {
   const now = new Date();
-  return { dayOfWeek: now.getUTCDay(), hourOfDay: now.getUTCHours() };
+  const prevHourDate = new Date(now.getTime() - 60 * 60 * 1000);
+  return { dayOfWeek: prevHourDate.getUTCDay(), hourOfDay: prevHourDate.getUTCHours() };
 }
 
 const VALID_FEATURES = ["volume", "launch"] as const;
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `invalid or missing 'mode' query param, expected one of ${VALID_MODES.join(", ")}` }, { status: 400 });
   }
 
-  const { dayOfWeek, hourOfDay } = currentSlot();
+  const { dayOfWeek, hourOfDay } = targetSlot();
   const key = `${feature}/${mode}`;
 
   try {

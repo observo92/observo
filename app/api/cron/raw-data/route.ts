@@ -31,15 +31,26 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 60; // Hobby plan cap
 
-function currentSlot() {
+// The cron runs at minute 0 of every hour, but the hour that just STARTED
+// hasn't happened yet -- there's no data for it. What we actually want to
+// record is the hour that just FINISHED (e.g. a run at 14:00 should record
+// data for the 13:00-14:00 slot). Using the current in-progress hour was a
+// bug: launch counts were near-zero (the filter only matched the handful of
+// seconds elapsed since the hour began) and volume was mislabeled a full
+// hour off (GeckoTerminal's volume_usd.h1 is a trailing last-60-min window,
+// which corresponds to the hour that just ended, not the one just starting).
+function targetSlot() {
   const now = new Date();
-  return { dayOfWeek: now.getUTCDay(), hourOfDay: now.getUTCHours() };
+  const prevHourDate = new Date(now.getTime() - 60 * 60 * 1000);
+  return {
+    dayOfWeek: prevHourDate.getUTCDay(),
+    hourOfDay: prevHourDate.getUTCHours(),
+    snapshotDate: prevHourDate.toISOString().slice(0, 10),
+  };
 }
 
 async function refreshVolume() {
-  const now = new Date();
-  const snapshotDate = now.toISOString().slice(0, 10);
-  const { dayOfWeek, hourOfDay } = currentSlot();
+  const { dayOfWeek, hourOfDay, snapshotDate } = targetSlot();
   const admin = getSupabaseAdmin();
 
   // Single page (20 pools) is enough to cover Robinhood Chain's current
@@ -68,21 +79,21 @@ async function refreshVolume() {
 }
 
 async function refreshLaunch() {
-  const now = new Date();
-  const snapshotDate = now.toISOString().slice(0, 10);
-  const { dayOfWeek, hourOfDay } = currentSlot();
+  const { dayOfWeek, hourOfDay, snapshotDate } = targetSlot();
   const admin = getSupabaseAdmin();
 
-  // Scan only the last ~1.5h of blocks (comfortable margin over the 1h
-  // cron interval in case a run is delayed), not the whole chain.
+  // Scan from ~1.5h before the target hour's start (comfortable margin in
+  // case a run is delayed) up to the current chain head — the target hour
+  // already fully elapsed, so the chain head is guaranteed to be past it.
   const latest = await fetchLatestBlockNumber();
-  const fromBlock = await estimateBlockAtTimestamp(Math.floor(now.getTime() / 1000) - 5400);
+  const now = new Date();
+  const fromBlock = await estimateBlockAtTimestamp(Math.floor(now.getTime() / 1000) - 2 * 3600 - 1800);
   const launchCounts = new Map<string, number>();
   for (const config of LAUNCHPADS) {
     const logs = await fetchLogs(config.contractAddress, config.topic0, fromBlock, latest);
     for (const log of logs) {
       const decoded = decodeDeploymentLog(config.id, log);
-      // Only count events that actually fall in the current UTC hour bucket.
+      // Only count events that actually fall in the target UTC hour bucket.
       if (decoded.deployedAt.getUTCHours() === hourOfDay && decoded.deployedAt.toISOString().slice(0, 10) === snapshotDate) {
         launchCounts.set(config.id, (launchCounts.get(config.id) ?? 0) + 1);
       }
@@ -109,7 +120,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { dayOfWeek, hourOfDay } = currentSlot();
+  const { dayOfWeek, hourOfDay } = targetSlot();
   const results: Record<string, string> = {};
 
   // Hard per-task deadline so a slow/rate-limited upstream (GeckoTerminal or
