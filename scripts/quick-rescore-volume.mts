@@ -68,7 +68,7 @@ function log(msg: string) {
 }
 
 async function main() {
-  const feature: Feature = "volume";
+  const feature: Feature = (process.argv[2] as Feature) || "volume";
   log("Computing anchor scores from raw_snapshots...");
   const anchorScores = await computeAnchorScores(feature);
   log(`Computed anchor scores for ${anchorScores.size} slots`);
