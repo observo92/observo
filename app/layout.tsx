@@ -18,6 +18,8 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <div className="atmosphere" />
+        <video className="obi-bg-video hidden lg:block" src="/obi-video.mp4" autoPlay loop muted playsInline />
+        <video className="obi-bg-video-mobile lg:hidden" src="/obi-video.mp4" autoPlay loop muted playsInline />
         <ObservoBot />
         <Nav />
         {children}

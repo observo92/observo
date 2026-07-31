@@ -204,7 +204,7 @@ export default function Home() {
   const sourceCount = currentCell?.raw_stats?.bySource ? Object.keys(currentCell.raw_stats.bySource).length : 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-5 py-6 flex-1 w-full">
+    <div className="relative z-[1] max-w-4xl mx-auto px-5 py-6 flex-1 w-full">
       <div className="flex items-center justify-between mb-8 gap-3 flex-wrap">
         <p className="text-sm text-gray-400 max-w-[26rem]">
           Every launch. Every pool. Every hour. <span className="text-gray-500">AI watching Robinhood Chain, 24/7.</span>
@@ -216,12 +216,10 @@ export default function Home() {
 
       {/* Obi intro strip — a short, light "who's talking" moment before
           the verdict, so first-time visitors get Obi's identity before
-          his opinion. Deliberately compact (single row, small avatar) so
-          it doesn't repeat the old heavy "Meet Obi" card. */}
+          his opinion. The video itself moved to a fixed background element
+          (see .obi-bg-video below) since it looked too small/cramped as a
+          little inline thumbnail here. */}
       <div className="card obi-strip p-3.5 mb-3 flex items-center gap-3">
-        <div className="obi-strip-video shrink-0">
-          <video className="obi-video" src="/obi-video.mp4" autoPlay loop muted playsInline />
-        </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs text-gray-300">
             <span className="text-[#b7a3ff] font-medium">Obi</span> is Observo&apos;s AI — it watches every pool and launch on Robinhood Chain, 24/7.

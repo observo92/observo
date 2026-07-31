@@ -172,6 +172,48 @@ body {
   to   { background-position: -128px 0; }
 }
 
+/* Obi as a fixed background presence on the right side of the viewport
+   (desktop/lg+ only -- no room for this on mobile). Portrait video
+   (720x1280), fixed so it stays put while the page scrolls, faded out on
+   its left edge via mask so it blends into the page background instead of
+   reading as a hard video rectangle. Kept subtle (low opacity) so it's
+   atmosphere, not a distraction competing with actual content. */
+.obi-bg-video {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  height: 92vh;
+  width: auto;
+  max-width: 30vw;
+  object-fit: cover;
+  opacity: 0.22;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to left, black 40%, transparent 95%);
+  mask-image: linear-gradient(to left, black 40%, transparent 95%);
+}
+
+/* Mobile version of the Obi background video: no room to the side like
+   on desktop, so it sits full-width behind the whole content column,
+   very low opacity, centered vertically-ish near the top where the
+   verdict card is (the most "alive" part of the page). */
+.obi-bg-video-mobile {
+  position: fixed;
+  top: 8vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: auto;
+  max-height: 60vh;
+  object-fit: cover;
+  opacity: 0.18;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 35%, black 40%, transparent 85%);
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, black 30%, transparent 80%);
+}
+
 /* Lightweight intro strip above the verdict card — deliberately lower
    elevation/opacity than the main verdict card so it reads as a quick
    "who's talking" beat, not competing with the verdict for attention. */
