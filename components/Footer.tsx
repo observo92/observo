@@ -10,6 +10,7 @@ export default function Footer() {
           <Link href="/api-docs" className="hover:text-gray-300">API</Link>
           <Link href="/privacy" className="hover:text-gray-300">Privacy</Link>
           <Link href="/terms" className="hover:text-gray-300">Terms</Link>
+          <a href="https://x.com/observodotfun" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">X</a>
         </div>
       </div>
     </footer>

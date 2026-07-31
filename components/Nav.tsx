@@ -37,6 +37,15 @@ export default function Nav() {
               {link.label}
             </Link>
           ))}
+          <a
+            href="https://x.com/observodotfun"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="navlink"
+            aria-label="Observo on X"
+          >
+            X
+          </a>
         </nav>
         <button className="sm:hidden text-gray-500" onClick={() => setOpen((o) => !o)}>
           ☰
@@ -54,6 +63,15 @@ export default function Nav() {
               {link.label}
             </Link>
           ))}
+          <a
+            href="https://x.com/observodotfun"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="navlink"
+            onClick={() => setOpen(false)}
+          >
+            X
+          </a>
         </nav>
       )}
     </header>
