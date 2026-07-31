@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { VerdictCell } from "@/lib/types";
-import ObiIntro from "@/components/ObiIntro";
 import Ticker from "@/components/Ticker";
 import { useHeatmapTooltip, HeatmapTooltip } from "@/components/HeatmapTooltip";
 
@@ -62,6 +61,15 @@ function tooltipNote(cell: VerdictCell | undefined): string {
   return "Quiet stretch";
 }
 
+const OBI_CHECKLIST = ["Scans every launch", "Monitors liquidity", "Detects unusual activity", "Generates the AI verdict"];
+
+const SCAN_MESSAGES = [
+  "Watching pools across Robinhood Chain...",
+  "Reading liquidity depth...",
+  "Cross-checking sources...",
+  "Looking for abnormal volume...",
+];
+
 export default function Home() {
   const [tab, setTab] = useState<Feature>("volume");
   const [mode, setMode] = useState<Mode>("trader");
@@ -70,7 +78,16 @@ export default function Home() {
   const [selected, setSelected] = useState<VerdictCell | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [verifyState, setVerifyState] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [scanIdx, setScanIdx] = useState(0);
   const tooltip = useHeatmapTooltip();
+
+  // Rotating "Obi is working" messages for the empty-state (no verdict yet
+  // for the current hour) so it reads as an active AI scanning, not a dead
+  // "still gathering data" sentence.
+  useEffect(() => {
+    const id = setInterval(() => setScanIdx((i) => (i + 1) % SCAN_MESSAGES.length), 2200);
+    return () => clearInterval(id);
+  }, []);
 
   const now = useMemo(() => new Date(), []);
   const nowDay = now.getUTCDay();
@@ -162,7 +179,7 @@ export default function Home() {
   function verdictHeadline(): { html: string } {
     const score = currentCell?.score ?? 0;
     if (!currentCell) {
-      return { html: `Still gathering data for this hour — check back soon.` };
+      return { html: `<span class="scan-msg">${SCAN_MESSAGES[scanIdx]}</span>` };
     }
     if (tab === "volume") {
       if (score >= 7) return { html: `Volume's <b class="text-emerald-400">building fast</b> — ${currentCell.reasoning}` };
@@ -188,74 +205,109 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-6 flex-1 w-full">
-      <div className="flex items-center justify-end mb-4">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 pill border border-gray-700 px-3 py-1.5">
+      <div className="flex items-center justify-between mb-8 gap-3 flex-wrap">
+        <p className="text-sm text-gray-400 max-w-[26rem]">
+          Every launch. Every pool. Every hour. <span className="text-gray-500">AI watching Robinhood Chain, 24/7.</span>
+        </p>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 pill bg-white/[0.03] px-3 py-1.5 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 breathe" /> Live
         </div>
       </div>
 
-      {/* Obi's verdict card — signature element */}
-      <div className="card verdict-glow p-5 mb-4">
-        <div className="flex items-start gap-3.5">
-          <div className="obi-avatar-mini" />
-          <div className="flex-1 min-w-0">
-            <div className="mono text-[11px] text-[#8b6bff] tracking-wide uppercase mb-1 flex items-center gap-2">
-              <span className="breathe">✦</span> Obi&apos;s read on right now
-            </div>
-            <p className="font-display text-[17px] font-semibold leading-snug mb-3" dangerouslySetInnerHTML={{ __html: verdictHeadline().html }} />
-
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className="text-[11px] text-gray-500 mono whitespace-nowrap">Confidence</span>
-              <div className="confidence-bar">
-                <div className="confidence-fill" style={{ width: `${confidencePct}%` }} />
-              </div>
-              <span className="text-[11px] text-gray-500 mono whitespace-nowrap">{currentCell?.confidence ?? "—"}</span>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap text-[11px] text-gray-500 mono">
-              {scannedStat && <span>{scannedStat}</span>}
-              {sourceCount > 0 && <span>· {sourceCount} source{sourceCount === 1 ? "" : "s"} cross-referenced</span>}
-              {currentCell?.signed_at && <span>· signed {new Date(currentCell.signed_at).toLocaleTimeString()}</span>}
-            </div>
+      {/* Obi intro strip — a short, light "who's talking" moment before
+          the verdict, so first-time visitors get Obi's identity before
+          his opinion. Deliberately compact (single row, small avatar) so
+          it doesn't repeat the old heavy "Meet Obi" card. */}
+      <div className="card obi-strip p-3.5 mb-3 flex items-center gap-3">
+        <div className="obi-strip-video shrink-0">
+          <video className="obi-video" src="/obi-video.mp4" autoPlay loop muted playsInline />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-gray-300">
+            <span className="text-[#b7a3ff] font-medium">Obi</span> is Observo&apos;s AI — it watches every pool and launch on Robinhood Chain, 24/7.
           </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+            {OBI_CHECKLIST.map((item) => (
+              <span key={item} className="flex items-center gap-1 text-[11px] text-gray-500">
+                <span className="text-[#8b6bff]">✓</span> {item}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link href="/about#a-what" className="text-xs text-[#b7a3ff] font-medium hover:text-[#8b6bff] whitespace-nowrap hidden sm:inline">
+            Read more →
+          </Link>
+          <div className="obi-buy-wrap">
+            <button disabled className="obi-buy-btn pill px-3 py-1.5 text-xs font-medium whitespace-nowrap">
+              Buy $OBI
+            </button>
+            <span className="obi-tooltip">soon</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Obi's verdict card — the "what Obi thinks right now" moment,
+          separate from the intro strip above. */}
+      <div className="card verdict-glow p-5 mb-6">
+        <div className="mono text-[11px] text-[#8b6bff] tracking-wide uppercase mb-1.5 flex items-center gap-2">
+          <span className="breathe">✦</span> Obi&apos;s read on right now
+        </div>
+        <p className="font-display verdict-headline mb-3" dangerouslySetInnerHTML={{ __html: verdictHeadline().html }} />
+
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="text-[11px] text-gray-500 mono whitespace-nowrap">Confidence</span>
+          <div className="confidence-bar">
+            <div className="confidence-fill" style={{ width: `${confidencePct}%` }} />
+          </div>
+          <span className="text-[11px] text-gray-500 mono whitespace-nowrap">{currentCell?.confidence ?? "—"}</span>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap text-[11px] text-gray-500 mono">
+          {scannedStat && <span>{scannedStat}</span>}
+          {sourceCount > 0 && <span>· {sourceCount} source{sourceCount === 1 ? "" : "s"} cross-referenced</span>}
+          {currentCell?.signed_at && <span>· signed {new Date(currentCell.signed_at).toLocaleTimeString()}</span>}
         </div>
       </div>
 
       <Ticker />
 
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="heatmap-breakout">
+      <div className="heatmap-breakout-inner">
+
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
         <button
           onClick={() => setTab("volume")}
-          className={`pill px-4 py-2 text-sm font-medium ${tab === "volume" ? "tab-active" : "text-gray-400 border border-gray-700"}`}
+          className={`pill px-4 py-2 text-sm font-medium ${tab === "volume" ? "tab-active" : "text-gray-400 bg-white/[0.03]"}`}
         >
           Volume
         </button>
         <button
           onClick={() => setTab("launch")}
-          className={`pill px-4 py-2 text-sm font-medium ${tab === "launch" ? "tab-active" : "text-gray-400 border border-gray-700"}`}
+          className={`pill px-4 py-2 text-sm font-medium ${tab === "launch" ? "tab-active" : "text-gray-400 bg-white/[0.03]"}`}
         >
           New Launches
         </button>
         <div className="ml-auto flex items-center gap-1.5 text-sm">
           <button
             onClick={() => setMode("trader")}
-            className={`pill px-3 py-1.5 border text-xs font-medium ${mode === "trader" ? "mode-trader-active" : "border-gray-700 text-gray-400"}`}
+            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "trader" ? "mode-trader-active" : "text-gray-400"}`}
           >
-            I want to trade
+            Best time to trade
           </button>
           <button
             onClick={() => setMode("deployer")}
-            className={`pill px-3 py-1.5 border text-xs font-medium ${mode === "deployer" ? "mode-deployer-active" : "border-gray-700 text-gray-400"}`}
+            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "deployer" ? "mode-deployer-active" : "text-gray-400"}`}
           >
-            I want to launch
+            Best time to launch
           </button>
         </div>
       </div>
 
-      <div className="card p-5 mb-4">
+      <div className="card heatmap-hero p-5 sm:p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="font-display font-semibold text-sm">{tab === "volume" ? "Best hours to trade" : "Best hours to launch"}</div>
+            <div className="font-display font-semibold text-base">{tab === "volume" ? "Best hours to trade" : "Best hours to launch"}</div>
             <div className="text-xs text-gray-500 mt-0.5">Hover or tap any hour for Obi&apos;s note</div>
           </div>
           <div className="text-xs text-gray-500">{DAYS[nowDay]} · now {shortHourLabel(nowHour)}</div>
@@ -314,6 +366,9 @@ export default function Home() {
         {loading && <div className="text-xs text-gray-500 mt-3">Loading...</div>}
       </div>
 
+      </div>
+      </div>
+
       {selected && (
         <div className="card p-5 mb-4">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -368,8 +423,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      <ObiIntro />
 
       <Link href="/api-docs" className="card p-5 flex items-center justify-between gap-3 flex-wrap mb-4 hover:border-gray-600 transition-colors">
         <div>
