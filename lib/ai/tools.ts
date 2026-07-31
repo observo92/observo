@@ -78,18 +78,23 @@ export async function getHistoricalAverage(feature: Feature, dayOfWeek: number, 
   };
 }
 
-// VERIFY — how much historical evidence actually backs this slot. Directly
-// feeds the AI's confidence rating: 1-2 days of data is not the same
-// reliability as 4+ weeks.
+// VERIFY — how much historical evidence actually backs this slot. Each
+// (dayOfWeek, hourOfDay) slot only recurs once per week, so
+// distinctDaysObserved here really means "distinct weekly occurrences",
+// not calendar days -- 21 occurrences would take ~5 months of continuous
+// data, which is unrealistic for a freshly-launched product. Thresholds
+// set to 3/8 occurrences (~3 weeks / ~2 months) instead of 7/21 so
+// confidence can genuinely earn "medium"/"high" within a product's first
+// couple months rather than requiring most of a year.
 export async function getSampleConfidence(feature: Feature, dayOfWeek: number, hourOfDay: number) {
   const rows = await fetchSlotRows(feature, dayOfWeek, hourOfDay);
   const distinctDates = new Set(rows.map((r) => r.snapshot_date));
   return {
     distinctDaysObserved: distinctDates.size,
     recommendation:
-      distinctDates.size >= 21
+      distinctDates.size >= 8
         ? "high"
-        : distinctDates.size >= 7
+        : distinctDates.size >= 3
         ? "medium"
         : "low",
   };
