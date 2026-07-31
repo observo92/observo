@@ -81,18 +81,12 @@ async function fetchPonsAnalytics(): Promise<PonsAnalytics | null> {
 export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: volToday }, { data: volHistory }, ponsAnalytics] = await Promise.all([
+  const [{ data: volToday }, ponsAnalytics] = await Promise.all([
     supabase
       .from("raw_snapshots")
       .select("source, volume_usd")
       .eq("feature", "volume")
       .eq("snapshot_date", today),
-    supabase
-      .from("raw_snapshots")
-      .select("volume_usd, snapshot_date")
-      .eq("feature", "volume")
-      .order("snapshot_date", { ascending: false })
-      .limit(200),
     fetchPonsAnalytics(),
   ]);
 
@@ -122,11 +116,6 @@ export async function GET() {
     items.push({ label: "Pons volume (24h)", value: fmtUsd(ponsAnalytics.totals.volumeUsd24h), direction: "flat" });
   }
 
-  // Distinct days of history collected (confidence signal)
-  if (volHistory) {
-    const distinctDates = new Set(volHistory.map((r) => r.snapshot_date));
-    items.push({ label: "Days of history", value: `${distinctDates.size}`, direction: "flat" });
-  }
 
   return NextResponse.json({ items, generatedAt: new Date().toISOString() });
 }

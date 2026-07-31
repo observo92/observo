@@ -81,12 +81,19 @@ export default function Home() {
     fetch(`/api/v1/heatmap?feature=${tab}&mode=${mode}`)
       .then((r) => r.json())
       .then((data) => {
-        setGrid(data.grid ?? []);
-        setSelected(null);
+        const newGrid: VerdictCell[] = data.grid ?? [];
+        setGrid(newGrid);
+        // Auto-select the current hour's cell so its full detail (reasoning,
+        // score, confidence, verify signature) is visible immediately on
+        // load, instead of requiring the user to click a cell first.
+        const nowCell = newGrid.find(
+          (c) => c.day_of_week === nowDay && c.hour_of_day === nowHour
+        );
+        setSelected(nowCell ?? null);
         setWhyOpen(false);
       })
       .finally(() => setLoading(false));
-  }, [tab, mode]);
+  }, [tab, mode, nowDay, nowHour]);
 
   const byKey = useMemo(() => {
     const map = new Map<string, VerdictCell>();

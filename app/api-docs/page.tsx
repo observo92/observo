@@ -36,7 +36,7 @@ export default function ApiDocsPage() {
       "hour_of_day": 15,
       "score": 6,
       "confidence": "low",
-      "reasoning": "This hour is the 4th busiest of the day, but the data is based on only a few days of history, so it's not very reliable yet.",
+      "reasoning": "This hour is the 4th busiest of the day, but the historical data backing it is still limited, so it's not very reliable yet.",
       "payload_hash": "861db2938b2116cbbaa03b8ebea439490a4e57d09a20f4c72b5f7e9d149fcb79",
       "signature": "xH4is/bB/wqB4yQbKXanT22XIHyTujERhXntHYB89Qy8TfkdvNES1HOKLXrg3ZE7G0N2+Z7flqO4KLHZdEbwAQ==",
       "signed_at": "2026-07-22T13:37:11Z"
