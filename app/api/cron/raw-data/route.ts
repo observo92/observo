@@ -53,12 +53,18 @@ async function refreshVolume() {
   const { dayOfWeek, hourOfDay, snapshotDate } = targetSlot();
   const admin = getSupabaseAdmin();
 
-  // Single page (20 pools) is enough to cover Robinhood Chain's current
-  // pool count, and the /pools response already includes each pool's
-  // volume_usd.h1 (rolling last-hour volume) — no separate /ohlcv/hour
-  // call needed per pool. Keeps this to exactly one GeckoTerminal request
-  // per run, which matters given its aggressive free-tier rate limit.
-  const pools = await fetchTopPools(1);
+  // 2 pages (40 pools), sorted by h24_volume_usd_desc (see
+  // geckoterminal.ts), captures the vast majority of real volume: a
+  // one-time live check found page 1 alone held ~92% of total volume once
+  // properly sorted, with page 2 adding a small tail and pages beyond that
+  // contributing near-zero. Bug found 2026-08-01: this used to fetch only
+  // page 1 with NO sort param, which returns pools in an arbitrary order —
+  // multi-million-dollar pools could land on page 2+ while page 1 held
+  // near-zero-volume pools, silently undercounting total volume by ~30%+.
+  // The /pools response already includes each pool's volume_usd.h1
+  // (rolling last-hour volume) — no separate /ohlcv/hour call needed per
+  // pool.
+  const pools = await fetchTopPools(2);
   const volumeBuckets = new Map<string, number>();
   for (const pool of pools) {
     volumeBuckets.set(pool.dexId, (volumeBuckets.get(pool.dexId) ?? 0) + pool.volume1hUsd);

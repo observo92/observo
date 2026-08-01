@@ -59,6 +59,7 @@ interface PonsAnalytics {
     launches24h: number;
     volumeUsd24h: number;
   };
+  series?: Array<{ timestamp: number; launches: number; volumeUsd: number }>;
 }
 
 // Undocumented endpoint discovered via network inspection of Pons's own
@@ -111,8 +112,22 @@ export async function GET() {
 
   // Pons launch/volume stats from their own analytics — see comment above
   // on why this isn't sourced from our own launch scanner.
+  //
+  // Sanity check found 2026-08-01: Pons's own totals.launches24h briefly
+  // glitched to exactly 0 while volumeUsd24h stayed at its normal $62M+
+  // level and every prior day in their own `series` array showed
+  // 12,000-18,000+ launches/day -- a launchpad doing $62M/day in trading
+  // volume genuinely having ZERO new launches that same day is not
+  // plausible, so a bare 0 here is treated as a (likely upstream/Dune
+  // sync) glitch rather than real data. Fall back to the most recent
+  // non-zero day in their own `series` history instead of displaying 0.
   if (ponsAnalytics) {
-    items.push({ label: "Pons launches (24h)", value: `${ponsAnalytics.totals.launches24h.toLocaleString()}`, direction: "flat" });
+    let launches24h = ponsAnalytics.totals.launches24h;
+    if (launches24h === 0 && ponsAnalytics.totals.volumeUsd24h > 0 && ponsAnalytics.series) {
+      const lastGoodDay = [...ponsAnalytics.series].reverse().find((d) => d.launches > 0);
+      if (lastGoodDay) launches24h = lastGoodDay.launches;
+    }
+    items.push({ label: "Pons launches (24h)", value: `${launches24h.toLocaleString()}`, direction: "flat" });
     items.push({ label: "Pons volume (24h)", value: fmtUsd(ponsAnalytics.totals.volumeUsd24h), direction: "flat" });
   }
 

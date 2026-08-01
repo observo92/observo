@@ -82,8 +82,15 @@ export interface PoolSummary {
 export async function fetchTopPools(pages = 5): Promise<PoolSummary[]> {
   const results: PoolSummary[] = [];
   for (let page = 1; page <= pages; page++) {
+    // sort=h24_volume_usd_desc is required -- without it the API returns
+    // pools in an arbitrary/unsorted order (confirmed empirically: page 1
+    // without this param can contain $0-volume pools while a real
+    // multi-million-dollar pool sits on page 2+). With this sort, the
+    // highest-volume pools are guaranteed to appear first, so reading only
+    // the first page (or two) actually captures the bulk of real volume
+    // instead of an arbitrary subset.
     const json = await gtFetch<GtPoolsResponse>(
-      `/networks/${NETWORK}/pools?page=${page}`
+      `/networks/${NETWORK}/pools?page=${page}&sort=h24_volume_usd_desc`
     );
     if (!json.data || json.data.length === 0) break;
     for (const pool of json.data) {
