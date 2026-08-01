@@ -35,24 +35,38 @@ interface JsonRpcResponse<T> {
 }
 
 async function rpcCall<T>(method: string, params: unknown[]): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  let res: Response;
-  try {
-    res = await fetch(RPC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
+  // Retries on 429 -- this RPC has a burst rate limit (fine individually,
+  // can fail if hit right after other calls), so a bare single-shot call
+  // is not reliable for scripts making many sequential requests (e.g.
+  // backfill). The live hourly cron makes few enough calls per run that
+  // this rarely triggers, but it's cheap insurance either way.
+  let lastErr: Error | undefined;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    let res: Response;
+    try {
+      res = await fetch(RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (res.status === 429) {
+      lastErr = new Error(`RPC ${method} HTTP 429`);
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      continue;
+    }
+    if (!res.ok) throw new Error(`RPC ${method} HTTP ${res.status}`);
+    const json: JsonRpcResponse<T> = await res.json();
+    if (json.error) throw new Error(`RPC ${method} error: ${json.error.message}`);
+    if (json.result === undefined) throw new Error(`RPC ${method}: no result in response`);
+    return json.result;
   }
-  if (!res.ok) throw new Error(`RPC ${method} HTTP ${res.status}`);
-  const json: JsonRpcResponse<T> = await res.json();
-  if (json.error) throw new Error(`RPC ${method} error: ${json.error.message}`);
-  if (json.result === undefined) throw new Error(`RPC ${method}: no result in response`);
-  return json.result;
+  throw lastErr ?? new Error(`RPC ${method}: exhausted retries`);
 }
 
 export interface RpcLog {
@@ -122,14 +136,15 @@ export class BlockTimeEstimator {
   ) {}
 
   static async create(fromBlock: number, toBlock: number): Promise<BlockTimeEstimator> {
-    const [fromTs, toTs] = await Promise.all([
-      rpcCall<{ timestamp: string }>("eth_getBlockByNumber", ["0x" + fromBlock.toString(16), false]).then(
-        (b) => parseInt(b.timestamp, 16)
-      ),
-      rpcCall<{ timestamp: string }>("eth_getBlockByNumber", ["0x" + toBlock.toString(16), false]).then(
-        (b) => parseInt(b.timestamp, 16)
-      ),
-    ]);
+    // Sequential, not Promise.all -- firing both anchor lookups at once
+    // doubles the simultaneous request rate right as a scan loop is
+    // already making other calls, found (via a failed backfill run) to
+    // trigger 429s that exhaust rpcCall's own retry budget. Sequential is
+    // slightly slower but far more reliable for long-running backfills.
+    const fromB = await rpcCall<{ timestamp: string }>("eth_getBlockByNumber", ["0x" + fromBlock.toString(16), false]);
+    const toB = await rpcCall<{ timestamp: string }>("eth_getBlockByNumber", ["0x" + toBlock.toString(16), false]);
+    const fromTs = parseInt(fromB.timestamp, 16);
+    const toTs = parseInt(toB.timestamp, 16);
     const secondsPerBlock = toBlock > fromBlock ? (toTs - fromTs) / (toBlock - fromBlock) : 0.101;
     return new BlockTimeEstimator(fromBlock, fromTs, secondsPerBlock);
   }
