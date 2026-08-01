@@ -236,12 +236,14 @@ export default function Home() {
           <Link href="/about#a-what" className="text-xs text-[#b7a3ff] font-medium hover:text-[#8b6bff] whitespace-nowrap hidden sm:inline">
             Read more →
           </Link>
-          <div className="obi-buy-wrap">
-            <button disabled className="obi-buy-btn pill px-3 py-1.5 text-xs font-medium whitespace-nowrap">
-              Buy $OBI
-            </button>
-            <span className="obi-tooltip">soon</span>
-          </div>
+          <a
+            href="https://www.ponsfamily.com/launchpad/0xc08827D1b2194ddcE1BF4d21C5b7ac42bE20A5CD"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="obi-buy-btn-live pill px-3 py-1.5 text-xs font-medium whitespace-nowrap"
+          >
+            Buy $OBI
+          </a>
         </div>
       </div>
 

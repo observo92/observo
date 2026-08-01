@@ -257,6 +257,15 @@ body {
   object-fit: cover;
 }
 .obi-buy-wrap { position: relative; display: inline-block; }
+.obi-buy-btn-live {
+  background: #8b6bff;
+  color: #0A0A0A;
+  border: 1px solid #8b6bff;
+  transition: background .15s ease, transform .15s ease;
+}
+.obi-buy-btn-live:hover {
+  background: #a68aff;
+}
 .obi-buy-btn {
   background: #1C1C1C;
   color: #6A6A6A;
