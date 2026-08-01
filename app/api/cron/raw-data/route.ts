@@ -25,7 +25,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTopPools } from "@/lib/sources/geckoterminal";
-import { fetchLogs, fetchLatestBlockNumber, estimateBlockAtTimestamp } from "@/lib/sources/blockscout";
+import { fetchLatestBlockNumberRpc, fetchLogsRpc, BlockTimeEstimator } from "@/lib/sources/rpc";
 import { LAUNCHPADS, decodeDeploymentLog } from "@/lib/sources/launchpads";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -84,21 +84,40 @@ async function refreshVolume() {
   }
 }
 
+// Blocks per second on Robinhood Chain, verified empirically — used only
+// to size how far back to scan, not to pinpoint exact boundaries (events
+// are bucketed into hours using their own on-chain timestamp anyway).
+const BLOCKS_PER_SECOND = 1 / 0.101;
+
 async function refreshLaunch() {
   const { dayOfWeek, hourOfDay, snapshotDate } = targetSlot();
   const admin = getSupabaseAdmin();
 
+  // Bug found 2026-08-01: Blockscout's legacy getLogs endpoint (formerly
+  // used here) got rate-limited to zero server-side, killing launch data
+  // collection for ~40 hours with no error surfaced anywhere. Its v2 API
+  // can't filter by topic0/block-range server-side, so covering even a
+  // single hour for the busiest launch contracts took 14+ seconds and
+  // still wasn't complete. Switched to the chain's own RPC endpoint
+  // (eth_getLogs), which supports real server-side filtering same as any
+  // standard EVM chain — verified taking ~300-1500ms for the ranges this
+  // function needs. See lib/sources/rpc.ts for full details.
+  //
   // Scan from ~1.5h before the target hour's start (comfortable margin in
   // case a run is delayed) up to the current chain head — the target hour
   // already fully elapsed, so the chain head is guaranteed to be past it.
-  const latest = await fetchLatestBlockNumber();
-  const now = new Date();
-  const fromBlock = await estimateBlockAtTimestamp(Math.floor(now.getTime() / 1000) - 2 * 3600 - 1800);
+  const latest = await fetchLatestBlockNumberRpc();
+  const windowSeconds = 2 * 3600 + 1800;
+  const fromBlock = Math.max(0, latest - Math.round(windowSeconds * BLOCKS_PER_SECOND));
+  const estimator = await BlockTimeEstimator.create(fromBlock, latest);
+
   const launchCounts = new Map<string, number>();
   for (const config of LAUNCHPADS) {
-    const logs = await fetchLogs(config.contractAddress, config.topic0, fromBlock, latest);
+    const logs = await fetchLogsRpc(config.contractAddress, config.topic0, fromBlock, latest);
     for (const log of logs) {
-      const decoded = decodeDeploymentLog(config.id, log);
+      const blockNumber = parseInt(log.blockNumber, 16);
+      const timestampSec = estimator.estimateTimestampSec(blockNumber);
+      const decoded = decodeDeploymentLog(config.id, log, timestampSec);
       // Only count events that actually fall in the target UTC hour bucket.
       if (decoded.deployedAt.getUTCHours() === hourOfDay && decoded.deployedAt.toISOString().slice(0, 10) === snapshotDate) {
         launchCounts.set(config.id, (launchCounts.get(config.id) ?? 0) + 1);

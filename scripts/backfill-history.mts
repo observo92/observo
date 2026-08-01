@@ -248,7 +248,7 @@ async function backfillLaunch(progress: Progress) {
       const bucket = new Map<string, { day_of_week: number; hour_of_day: number; snapshot_date: string; count: number }>();
       for (const rawLog of logs) {
         try {
-          const decoded = decodeDeploymentLog(config.id, rawLog);
+          const decoded = decodeDeploymentLog(config.id, rawLog, parseInt(rawLog.timeStamp, 16));
           const d = decoded.deployedAt;
           const snapshotDate = d.toISOString().slice(0, 10);
           const key = `${snapshotDate}|${d.getUTCHours()}`;

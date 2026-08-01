@@ -87,7 +87,7 @@ async function backfillLaunches() {
     const logs = await fetchLogs(config.contractAddress, config.topic0, fromBlock, latest);
     console.log(`[launch] ${config.id}: ${logs.length} deploy events found`);
     for (const log of logs) {
-      const decoded = decodeDeploymentLog(config.id, log);
+      const decoded = decodeDeploymentLog(config.id, log, parseInt(log.timeStamp, 16));
       const { snapshotDate, dayOfWeek, hourOfDay } = dateParts(Math.floor(decoded.deployedAt.getTime() / 1000));
       const key = `${config.id}|${snapshotDate}|${hourOfDay}`;
       const existing = buckets.get(key);

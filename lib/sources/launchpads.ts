@@ -3,7 +3,18 @@
 // against each contract), not proprietary to any other project.
 
 import { decodeAbiParameters } from "../abi-decode";
-import type { BlockscoutLog } from "./blockscout";
+
+// Generic log shape covering both Blockscout's legacy getLogs format and
+// the chain RPC's eth_getLogs format -- both give topics/data/blockNumber
+// as hex, just under slightly different field names for the tx hash. Event
+// timestamp is NOT part of this (RPC logs report blockTimestamp as 0x0 on
+// this chain -- it must be looked up separately per block and passed in).
+export interface GenericLog {
+  topics: (string | null)[];
+  data: string;
+  blockNumber: string; // hex
+  transactionHash: string;
+}
 
 export type LaunchpadId = "flap" | "pons" | "bow";
 
@@ -46,7 +57,7 @@ export interface DecodedDeployment {
 
 // flap.sh: TokenCreated(uint256 ts, address creator, uint256 nonce,
 // address token, string name, string symbol, string meta) — all non-indexed.
-function decodeFlap(log: BlockscoutLog): DecodedDeployment {
+function decodeFlap(log: GenericLog, timestampSec: number): DecodedDeployment {
   const [, creator, , token] = decodeAbiParameters(
     ["uint256", "address", "uint256", "address", "string", "string", "string"],
     log.data
@@ -57,40 +68,40 @@ function decodeFlap(log: BlockscoutLog): DecodedDeployment {
     deployerAddress: creator as string,
     blockNumber: parseInt(log.blockNumber, 16),
     txHash: log.transactionHash,
-    deployedAt: new Date(parseInt(log.timeStamp, 16) * 1000),
+    deployedAt: new Date(timestampSec * 1000),
   };
 }
 
 // Pons: TokenDeployed(address indexed token, address indexed deployer, ...)
-function decodePons(log: BlockscoutLog): DecodedDeployment {
+function decodePons(log: GenericLog, timestampSec: number): DecodedDeployment {
   return {
     launchpad: "pons",
     tokenAddress: "0x" + log.topics[1]!.slice(-40),
     deployerAddress: "0x" + log.topics[2]!.slice(-40),
     blockNumber: parseInt(log.blockNumber, 16),
     txHash: log.transactionHash,
-    deployedAt: new Date(parseInt(log.timeStamp, 16) * 1000),
+    deployedAt: new Date(timestampSec * 1000),
   };
 }
 
 // bow.fun: Launched(address indexed token, address indexed deployer, ...)
-function decodeBow(log: BlockscoutLog): DecodedDeployment {
+function decodeBow(log: GenericLog, timestampSec: number): DecodedDeployment {
   return {
     launchpad: "bow",
     tokenAddress: "0x" + log.topics[1]!.slice(-40),
     deployerAddress: "0x" + log.topics[2]!.slice(-40),
     blockNumber: parseInt(log.blockNumber, 16),
     txHash: log.transactionHash,
-    deployedAt: new Date(parseInt(log.timeStamp, 16) * 1000),
+    deployedAt: new Date(timestampSec * 1000),
   };
 }
 
-const DECODERS: Record<LaunchpadId, (log: BlockscoutLog) => DecodedDeployment> = {
+const DECODERS: Record<LaunchpadId, (log: GenericLog, timestampSec: number) => DecodedDeployment> = {
   flap: decodeFlap,
   pons: decodePons,
   bow: decodeBow,
 };
 
-export function decodeDeploymentLog(launchpad: LaunchpadId, log: BlockscoutLog): DecodedDeployment {
-  return DECODERS[launchpad](log);
+export function decodeDeploymentLog(launchpad: LaunchpadId, log: GenericLog, timestampSec: number): DecodedDeployment {
+  return DECODERS[launchpad](log, timestampSec);
 }
