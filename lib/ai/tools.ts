@@ -216,6 +216,110 @@ export async function getAnchorScore(
   return { anchorScore, percentile: Math.round(percentile * 10) / 10, todayValue };
 }
 
+// DEPLOYER LAUNCH ANCHOR SCORE — a separate deterministic 0-10 score used
+// ONLY for feature="launch" + mode="deployer". A raw launch-count anchor
+// (like getAnchorScore above) answers "is this hour busier than usual for
+// new token launches" -- but that's the WRONG question for a deployer.
+// A deployer doesn't want "busy", they want "profitable to launch into":
+// 1500 launches into $50K of volume is a graveyard (your token drowns
+// among thousands of dead ones); 50 launches into $500K of volume is the
+// best possible timing (little competition, real buying interest). So
+// this anchor is built on the RATIO of volume to launch count for each
+// slot ("dollars of buying interest available per competing launch"),
+// percentile-ranked the same way getAnchorScore ranks raw values -- not
+// on launch count alone. feature="launch" + mode="trader" and all
+// feature="volume" anchors are untouched; they still use getAnchorScore
+// as before, since "is it busy" (not "is it profitable to launch into")
+// is genuinely the right question for a trader or for volume itself.
+export async function getDeployerLaunchAnchorScore(
+  dayOfWeek: number,
+  hourOfDay: number
+): Promise<{ anchorScore: number; percentile: number; todayLaunches: number; todayVolume: number; todayRatio: number | null }> {
+  const admin = getSupabaseAdmin();
+  const [launchRes, volumeRes] = await Promise.all([
+    admin.from("raw_snapshots").select("day_of_week, hour_of_day, snapshot_date, deploy_count").eq("feature", "launch"),
+    admin.from("raw_snapshots").select("day_of_week, hour_of_day, snapshot_date, volume_usd").eq("feature", "volume"),
+  ]);
+  if (launchRes.error) throw new Error(`getDeployerLaunchAnchorScore (launch): ${launchRes.error.message}`);
+  if (volumeRes.error) throw new Error(`getDeployerLaunchAnchorScore (volume): ${volumeRes.error.message}`);
+
+  type SlotRow = { day_of_week: number; hour_of_day: number; snapshot_date: string; value: number };
+
+  // Collapse to "most recent date's total" per slot, same definition as
+  // getAnchorScore/getTodayStats, once for launch counts and once for volume.
+  function latestPerSlot(rows: { day_of_week: number; hour_of_day: number; snapshot_date: string; deploy_count?: number | null; volume_usd?: number | null }[], valueOf: (r: { deploy_count?: number | null; volume_usd?: number | null }) => number): Map<string, SlotRow> {
+    const map = new Map<string, SlotRow>();
+    for (const row of rows) {
+      const key = `${row.day_of_week}-${row.hour_of_day}`;
+      const v = valueOf(row);
+      const existing = map.get(key);
+      if (!existing || row.snapshot_date > existing.snapshot_date) {
+        map.set(key, { day_of_week: row.day_of_week, hour_of_day: row.hour_of_day, snapshot_date: row.snapshot_date, value: v });
+      } else if (row.snapshot_date === existing.snapshot_date) {
+        existing.value += v;
+      }
+    }
+    return map;
+  }
+
+  const launchBySlot = latestPerSlot(launchRes.data ?? [], (r) => r.deploy_count ?? 0);
+  const volumeBySlot = latestPerSlot(volumeRes.data ?? [], (r) => r.volume_usd ?? 0);
+
+  // Build ratio = volume / launchCount for every slot that has BOTH a
+  // launch reading and a volume reading -- a slot missing either side
+  // can't produce a meaningful ratio and must be excluded from the
+  // comparison set entirely (not treated as 0, which would silently skew
+  // the percentile distribution).
+  const allKeys = new Set<string>([...launchBySlot.keys(), ...volumeBySlot.keys()]);
+  const ratios: number[] = [];
+  for (const key of allKeys) {
+    const launchEntry = launchBySlot.get(key);
+    const volumeEntry = volumeBySlot.get(key);
+    if (!launchEntry || !volumeEntry) continue; // missing one side -- exclude
+    if (launchEntry.value > 0) {
+      ratios.push(volumeEntry.value / launchEntry.value);
+    }
+    // launchEntry.value === 0 with volume present is handled as a special
+    // case only for the TARGET slot below (zero competition); we don't
+    // include it in the comparison distribution since "divide by zero"
+    // isn't a normal ratio other slots can be ranked against.
+  }
+
+  const targetKey = `${dayOfWeek}-${hourOfDay}`;
+  const targetLaunch = launchBySlot.get(targetKey);
+  const targetVolume = volumeBySlot.get(targetKey);
+  const todayLaunches = targetLaunch?.value ?? 0;
+  const todayVolume = targetVolume?.value ?? 0;
+
+  // No data at all for this slot on either side -- neutral, not an error.
+  if (!targetLaunch && !targetVolume) {
+    return { anchorScore: 5, percentile: 50, todayLaunches, todayVolume, todayRatio: null };
+  }
+
+  // Zero competing launches this slot: best possible case IF there's any
+  // buying interest at all; otherwise genuinely no signal either way.
+  if (todayLaunches === 0) {
+    const anchorScore = todayVolume > 0 ? 10 : 5;
+    return { anchorScore, percentile: todayVolume > 0 ? 100 : 50, todayLaunches, todayVolume, todayRatio: null };
+  }
+
+  const todayRatio = todayVolume / todayLaunches;
+
+  if (ratios.length === 0) {
+    return { anchorScore: 5, percentile: 50, todayLaunches, todayVolume, todayRatio };
+  }
+
+  const sorted = [...ratios].sort((a, b) => a - b);
+  let countBelowOrEqual = 0;
+  for (const r of sorted) {
+    if (r <= todayRatio) countBelowOrEqual++;
+  }
+  const percentile = (countBelowOrEqual / sorted.length) * 100;
+  const anchorScore = Math.min(10, Math.max(0, Math.round(percentile / 10)));
+
+  return { anchorScore, percentile: Math.round(percentile * 10) / 10, todayLaunches, todayVolume, todayRatio };
+}
+
 export const TOOL_DEFINITIONS = [
   {
     type: "function" as const,

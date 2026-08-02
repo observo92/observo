@@ -277,13 +277,13 @@ export default function Home() {
 
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         <button
-          onClick={() => setTab("volume")}
+          onClick={() => { setTab("volume"); setMode("trader"); }}
           className={`pill px-4 py-2 text-sm font-medium ${tab === "volume" ? "tab-active" : "text-gray-400 bg-white/[0.03]"}`}
         >
           Volume
         </button>
         <button
-          onClick={() => setTab("launch")}
+          onClick={() => { setTab("launch"); setMode("deployer"); }}
           className={`pill px-4 py-2 text-sm font-medium ${tab === "launch" ? "tab-active" : "text-gray-400 bg-white/[0.03]"}`}
         >
           New Launches
@@ -291,13 +291,17 @@ export default function Home() {
         <div className="ml-auto flex items-center gap-1.5 text-sm">
           <button
             onClick={() => setMode("trader")}
-            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "trader" ? "mode-trader-active" : "text-gray-400"}`}
+            disabled={tab === "launch"}
+            title={tab === "launch" ? "Volume drives \"best time to trade\" — switch to the Volume tab" : undefined}
+            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "trader" ? "mode-trader-active" : "text-gray-400"} ${tab === "launch" ? "opacity-30 cursor-not-allowed" : ""}`}
           >
             Best time to trade
           </button>
           <button
             onClick={() => setMode("deployer")}
-            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "deployer" ? "mode-deployer-active" : "text-gray-400"}`}
+            disabled={tab === "volume"}
+            title={tab === "volume" ? "Launch competition drives \"best time to launch\" — switch to the New Launches tab" : undefined}
+            className={`mode-btn pill px-3.5 py-1.5 text-xs font-semibold ${mode === "deployer" ? "mode-deployer-active" : "text-gray-400"} ${tab === "volume" ? "opacity-30 cursor-not-allowed" : ""}`}
           >
             Best time to launch
           </button>

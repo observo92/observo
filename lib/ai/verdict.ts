@@ -6,7 +6,7 @@
 // call and can call more than one before answering.
 
 import Groq from "groq-sdk";
-import { TOOL_DEFINITIONS, callTool, getAnchorScore, type Feature } from "./tools";
+import { TOOL_DEFINITIONS, callTool, getAnchorScore, getDeployerLaunchAnchorScore, type Feature } from "./tools";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -34,7 +34,7 @@ export interface VerdictResult {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay: number, anchorScore: number): string {
+function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay: number, anchorScore: number, deployerLaunchContext?: { todayLaunches: number; todayVolume: number; todayRatio: number | null }): string {
   const dayName = DAY_NAMES[dayOfWeek];
   const subject =
     feature === "volume"
@@ -44,6 +44,8 @@ function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay
   const audience =
     mode === "trader"
       ? "a retail trader deciding whether this is generally a good time to be active in the market"
+      : feature === "launch"
+      ? "someone planning to launch/deploy a new token, deciding whether this hour is a good time to launch INTO -- meaning: will there be real buying interest relative to how many other tokens they're competing against, not just whether it's a busy hour"
       : "someone planning to launch/deploy a new token, deciding whether this hour tends to get attention or gets ignored";
 
   return `You are Observo's analysis engine. You're evaluating ${subject}, specifically for ${dayName} at ${String(hourOfDay).padStart(2, "0")}:00 UTC.
@@ -62,6 +64,12 @@ IMPORTANT — the score is NOT something you invent from scratch:
 - "confidence" (low/medium/high) reflects only how much historical data backs this slot (from get_sample_confidence). Little history = low confidence, but that alone should NOT drag the score down — it just means the UI will show this is a newer read. IMPORTANT: never mention the specific number of days/occurrences observed in your reasoning text (e.g. do not write "only 2 days of data" or "3 distinct days observed") — it reads as undermining trust in the product. If you want to note limited history, use vague phrasing like "still building a track record for this hour" instead of a raw count.
 - Mention the actual number from get_today_stats in your reasoning so it's concrete, not vague or averaged. ${feature === "volume" ? 'This feature is measured in DOLLARS -- phrase it like "around $2.3M in volume this hour".' : 'This feature is measured in a COUNT of new token launches, NOT dollars -- phrase it like "around 450 new tokens launched this hour" or "450 launches this hour". Never put a dollar sign in front of this number.'} If one source dominates today's total, you can still mention that, but don't let it override a genuinely large, real number — only discount it if today's total itself looks like noise (e.g. a single-digit count from one source, or a few thousand dollars from a single wallet).
 - CRITICAL: get_today_stats' "total" is the REAL number for this exact slot -- always quote THIS number as "today's"/"this hour's" volume or count. get_historical_average's "average" is a DIFFERENT, separate number (the average across all past occurrences of this slot) -- if you mention it at all, always label it explicitly as "average"/"usually"/"typically", never as what happened "today" or "this hour". Do not substitute one for the other.
+${deployerLaunchContext ? `
+DEPLOYER LAUNCH TIMING — special rule for this exact slot:
+- The anchor score above is NOT based on how many tokens launched this hour. It is based on the RATIO of trading volume to launch count -- roughly "how many real dollars of buying interest exist per competing token launch" -- percentile-ranked against every other hour. A high anchor means little competition relative to real money moving; a low anchor means a lot of competing launches chasing thin volume (a graveyard, not an opportunity).
+- The real numbers behind this ratio: today's launch count is ${deployerLaunchContext.todayLaunches}, today's trading volume is $${Math.round(deployerLaunchContext.todayVolume).toLocaleString("en-US")}${deployerLaunchContext.todayRatio !== null ? `, which works out to roughly $${Math.round(deployerLaunchContext.todayRatio).toLocaleString("en-US")} of volume per competing launch` : ""}.
+- Your reasoning MUST reflect BOTH sides of this, in plain language -- explicitly say whether real trading money is backing the launch activity or not. Never call a high-launch-count hour "good to launch into" if volume-per-launch is actually low; never call a low-launch-count hour "bad" if volume-per-launch is actually high (that is the best case: little competition, real buying interest).
+` : ""}
 
 When you're done gathering evidence, respond with ONLY a JSON object (no markdown, no extra text) in this exact shape:
 {"score": <integer 0-10>, "confidence": "low"|"medium"|"high", "reasoning": "<plain English, 1-3 sentences>"}`;
@@ -74,10 +82,14 @@ export async function generateVerdict(
   hourOfDay: number,
   model: string = DEFAULT_MODEL
 ): Promise<VerdictResult> {
-  const { anchorScore } = await getAnchorScore(feature, dayOfWeek, hourOfDay);
+  const isDeployerLaunch = feature === "launch" && mode === "deployer";
+  const deployerLaunchContext = isDeployerLaunch
+    ? await getDeployerLaunchAnchorScore(dayOfWeek, hourOfDay)
+    : null;
+  const { anchorScore } = deployerLaunchContext ?? (await getAnchorScore(feature, dayOfWeek, hourOfDay));
 
   const messages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt(feature, mode, dayOfWeek, hourOfDay, anchorScore) },
+    { role: "system", content: systemPrompt(feature, mode, dayOfWeek, hourOfDay, anchorScore, deployerLaunchContext ?? undefined) },
     { role: "user", content: "Begin your analysis." },
   ];
 
