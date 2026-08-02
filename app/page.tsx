@@ -307,7 +307,7 @@ export default function Home() {
       <div className="card heatmap-hero p-5 sm:p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="font-display font-semibold text-base">{tab === "volume" ? "Best hours to trade" : "Best hours to launch"}</div>
+            <div className="font-display font-semibold text-base">{mode === "trader" ? "Best hours to trade" : "Best hours to launch"}</div>
             <div className="text-xs text-gray-500 mt-0.5">Hover or tap any hour for Obi&apos;s note</div>
           </div>
           <div className="text-xs text-gray-500">{DAYS[nowDay]} · now {shortHourLabel(nowHour)}</div>
