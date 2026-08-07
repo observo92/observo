@@ -39,7 +39,7 @@ function systemPrompt(feature: Feature, mode: Mode, dayOfWeek: number, hourOfDay
   const subject =
     feature === "volume"
       ? "trading volume across DEX pools on Robinhood Chain"
-      : "new token launches across launchpads (flap.sh, Pons, bow.fun) on Robinhood Chain";
+      : "new token launches across launchpads (flap.sh, Pons, bow.fun, pools.trade) on Robinhood Chain";
 
   const audience =
     mode === "trader"

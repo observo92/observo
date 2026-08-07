@@ -55,7 +55,7 @@ export default function AboutPage() {
           <h2 id="a-what" className="font-semibold font-display text-lg mt-11 mb-3 scroll-mt-24">What Observo does</h2>
           <p className="text-sm text-gray-400 leading-relaxed">
             Observo watches activity across Robinhood Chain — trading volume and new token launches on
-            Pons, flap.sh, and bow.fun — and turns it into two simple heatmaps: when volume tends to be
+            Pons, flap.sh, bow.fun, and pools.trade — and turns it into two simple heatmaps: when volume tends to be
             strong, and when it&apos;s a good time to launch a new token. An AI reviews the data before every
             verdict, not just a raw average.
           </p>
@@ -115,7 +115,7 @@ export default function AboutPage() {
           <div className="callout">
             <span className="k">Not financial advice</span>
             <p className="text-[14.5px] text-gray-300">
-              Observo is not affiliated with Robinhood, Pons, flap.sh, or bow.fun. We simply observe
+              Observo is not affiliated with Robinhood, Pons, flap.sh, bow.fun, or pools.trade. We simply observe
               public on-chain activity. Nothing here is financial advice — Observo describes patterns in
               historical and current data; it does not guarantee future outcomes.
             </p>
